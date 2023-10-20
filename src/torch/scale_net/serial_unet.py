@@ -25,7 +25,6 @@ class UNet(torch.nn.Module):
         padding_type="valid",
         residual=False,
         norm_layer=None,
-        add_noise=False,
     ):
         """Create a U-Net::
 
@@ -129,10 +128,6 @@ class UNet(torch.nn.Module):
 
                 What, if any, normalization to layer after network layers. Default is none.
 
-            add_noise (optional):
-
-                Whether to add gaussian noise with 0 mean and unit variance ('True'), mean and variance parameterized by the network ('param'), or no noise ('False' <- default).
-
         """
 
         super(UNet, self).__init__()
@@ -143,12 +138,7 @@ class UNet(torch.nn.Module):
         self.input_nc = input_nc
         self.output_nc = output_nc if output_nc else ngf
         self.residual = residual
-        if add_noise == "param":  # add noise feature if necessary
-            self.noise_layer = ParameterizedNoiseBlock()
-        elif add_noise:
-            self.noise_layer = NoiseBlock()
-        else:
-            self.noise_layer = None
+
         # default arguments
 
         if kernel_size_down is None:
@@ -242,9 +232,6 @@ class UNet(torch.nn.Module):
                             downsample_factors[level],
                             mode="nearest" if constant_upsample else "transposed_conv",
                             input_nc=ngf * fmap_inc_factor ** (level + 1)
-                            + (
-                                level == 1 and (add_noise is not False)
-                            ),  # TODO Fix NoiseBlock addition...
                             output_nc=ngf * fmap_inc_factor ** (level + 1),
                             crop_factor=crop_factors[level],
                             next_conv_kernel_sizes=kernel_size_up[level],
@@ -291,8 +278,7 @@ class UNet(torch.nn.Module):
         # end of recursion
         if level == 0:
 
-            if self.noise_layer is not None:
-                f_left = self.noise_layer(f_left)
+
             fs_out = [f_left] * self.num_heads
 
         else:
