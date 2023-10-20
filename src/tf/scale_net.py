@@ -187,7 +187,6 @@ class SerialUNet(object):
         # compute minimal shape in the bottom layer (after the convolutions s.t. the upward path can still be evaluated
         min_bottom_right = (1.0, 1.0, 1.0)
         for lv in range(len(self.downsample_factors)):
-
             kernels = np.copy(self.kernel_size_up[lv])
 
             conv_pad = np.sum(
@@ -202,7 +201,6 @@ class SerialUNet(object):
         min_input_shape = np.copy(min_bottom_right)
 
         for lv in range(len(self.kernel_size_down))[::-1]:
-
             if lv != len(self.kernel_size_down) - 1:
                 min_input_shape *= self.downsample_factors[lv]
 
@@ -281,7 +279,6 @@ class SerialUNet(object):
         voxel_size=None,
         scope="",
     ):
-
         """Create a U-Net::
             f_in --> f_left --------------------------->> f_right--> f_out
                         |                                   ^

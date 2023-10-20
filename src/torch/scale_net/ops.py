@@ -1,5 +1,3 @@
-
-
 class ConvPass(torch.nn.Module):
     def __init__(
         self,
@@ -43,7 +41,6 @@ class ConvPass(torch.nn.Module):
         layers = []
 
         for i, kernel_size in enumerate(kernel_sizes):
-
             self.dims = len(kernel_size)
 
             conv = {2: torch.nn.Conv2d, 3: torch.nn.Conv3d, 4: Conv4d}[self.dims]
@@ -239,7 +236,6 @@ class Upsample(torch.nn.Module):
         crop_factor=None,
         next_conv_kernel_sizes=None,
     ):
-
         super(Upsample, self).__init__()
 
         if crop_factor is not None:
@@ -252,7 +248,6 @@ class Upsample(torch.nn.Module):
         self.dims = len(scale_factor)
 
         if mode == "transposed_conv":
-
             up = {2: torch.nn.ConvTranspose2d, 3: torch.nn.ConvTranspose3d}[self.dims]
 
             self.up = up(
@@ -260,7 +255,6 @@ class Upsample(torch.nn.Module):
             )
 
         else:
-
             self.up = torch.nn.Upsample(scale_factor=tuple(scale_factor), mode=mode)
 
     def crop_to_factor(self, x, factor, kernel_sizes):
@@ -302,7 +296,6 @@ class Upsample(torch.nn.Module):
         )
 
         if target_spatial_shape != spatial_shape:
-
             assert all(
                 ((t > c) for t, c in zip(target_spatial_shape, convolution_crop))
             ), (
@@ -327,7 +320,6 @@ class Upsample(torch.nn.Module):
         return x[slices]
 
     def forward(self, f_left, g_out):
-
         g_up = self.up(g_out)
 
         if self.crop_factor is not None:

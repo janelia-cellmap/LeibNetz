@@ -159,7 +159,6 @@ def upsample(
     prefix="",
     constant_upsample=False,
 ):
-
     voxel_size = tuple(vs / fac for vs, fac in zip(voxel_size, factors))
 
     print(
@@ -440,7 +439,6 @@ def crossmod_conv_pass(
 
 
 def center_crop(tensor, size):
-
     shape = tensor.get_shape().as_list()
     diff = tuple(sh - si for sh, si in zip(shape, size))
 

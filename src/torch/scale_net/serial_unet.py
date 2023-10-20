@@ -6,6 +6,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
+from ops import ConvPass, ConvDownsample, MaxDownsample, Upsample
 
 
 class UNet(torch.nn.Module):
@@ -145,10 +146,13 @@ class UNet(torch.nn.Module):
             kernel_size_down = [
                 [(3,) * self.ndims, (3,) * self.ndims]
             ] * self.num_levels
+        self.kernel_size_down = kernel_size_down
         if kernel_size_up is None:
             kernel_size_up = [[(3,) * self.ndims, (3,) * self.ndims]] * (
                 self.num_levels - 1
             )
+        self.kernel_size_up - kernel_size_up
+        self.downsample_factors = downsample_factors
 
         # compute crop factors for translation equivariance
         crop_factors = []
@@ -167,6 +171,7 @@ class UNet(torch.nn.Module):
                 raise f"Invalid padding_type option: {padding_type}"
             crop_factors.append(factor_product)
         crop_factors = crop_factors[::-1]
+        self.crop_factors = crop_factors
 
         # modules
 
@@ -192,7 +197,6 @@ class UNet(torch.nn.Module):
 
         # left downsample layers
         if downsample_method.lower() == "max":
-
             self.l_down = nn.ModuleList(
                 [
                     MaxDownsample(downsample_factors[level])
@@ -201,7 +205,6 @@ class UNet(torch.nn.Module):
             )
 
         elif downsample_method.lower() == "convolve":
-
             self.l_down = nn.ModuleList(
                 [
                     ConvDownsample(
@@ -218,7 +221,6 @@ class UNet(torch.nn.Module):
             )
 
         else:
-
             raise RuntimeError(
                 f'Unknown downsampling method {downsample_method}. Use "max" or "convolve" instead.'
             )
@@ -231,7 +233,7 @@ class UNet(torch.nn.Module):
                         Upsample(
                             downsample_factors[level],
                             mode="nearest" if constant_upsample else "transposed_conv",
-                            input_nc=ngf * fmap_inc_factor ** (level + 1)
+                            input_nc=ngf * fmap_inc_factor ** (level + 1),
                             output_nc=ngf * fmap_inc_factor ** (level + 1),
                             crop_factor=crop_factors[level],
                             next_conv_kernel_sizes=kernel_size_up[level],
@@ -266,9 +268,73 @@ class UNet(torch.nn.Module):
                 for _ in range(num_heads)
             ]
         )
+        (
+            self.min_input_shape,
+            self.step_valid_shape,
+            self.min_output_shape,
+            self.min_bottom_shape,
+        ) = self.compute_minimal_shapes()
+
+    def compute_minimal_shapes(self):
+        min_bottom_right = np.zeros(self.ndims)
+        for lv in range(len(self.downsample_factors)):
+            kernels = self.kernel_size_up[lv]
+            conv_pad = np.sum([np.array(k) - np.ones(self.ndims) for k in kernels])
+            conv_pad = np.ceil(conv_pad / self.crop_factors[lv]) * self.crop_factors[lv]
+            min_bottom_right += conv_pad / np.prod(self.downsample_factors[lv:], axis=0)
+        min_bottom_right = np.ceil(min_bottom_right)
+        min_bottom_right = np.max([min_bottom_right, np.ones(self.ndims)], axis=0)
+        min_input_shape = np.copy(min_bottom_right)
+        for lv in range(len(self.kernel_size_down))[::-1]:
+            if lv != len(self.kernel_size_down) - 1:
+                min_input_shape *= self.downsample_factors[lv]
+            kernels = self.kernel_size_down[lv]
+            conv_pad = np.sum([np.array(k) - np.ones(self.ndims)] for k in kernels)
+            min_input_shape += conv_pad
+            if lv == len(self.kernel_size_down) - 1:
+                min_bottom_left = np.copy(min_input_shape)
+        min_output_shape = np.copy(min_bottom_right)
+        for lv in range(len(self.downsample_factors))[::-1]:
+            min_output_shape *= self.downsample_factors[lv]
+            kernels = self.kernel_size_up[lv]
+            conv_pad = np.sum([np.array(k) - np.ones(self.ndims) for k in kernels])
+            conv_pad = np.ceil(conv_pad / self.crop_factors[lv]) * self.crop_factors[lv]
+            min_output_shape -= conv_pad
+        step = np.prod(self.downsample_factors, axis=0)
+        return min_input_shape, step, min_output_shape, min_bottom_left
+
+    def is_valid_input_shape(self, input_shape):
+        return (input_shape >= self.min_input_shape).all() and (
+            (input_shape - self.min_input_shape) % self.step_valid_shape == 0
+        ).all()
+
+    def get_bottom_left_from_input(self, input_shape):
+        if not self.is_valid_input_shape(input_shape):
+            msg = f"{input_shape} is not a valid input shape."
+            raise ValueError(msg)
+        bottom_shape = np.copy(input_shape)
+        for lv in range(len(self.downsample_factors)):
+            kernels = self.kernel_size_down[lv]
+            conv_pad = np.sum([np.array(k) - np.ones(self.ndims) for k in kernels])
+            bottom_shape -= conv_pad
+            bottom_shape /= self.downsample_factors[lv]
+        return bottom_shape
+
+    def get_input_from_output(self, output_shape):
+        input_shape = output_shape + self.min_input_shape - self.min_output_shape
+        if not self.is_valid_input_shape(input_shape):
+            msg = f"{output_shape} is not valid output_shape."
+            raise ValueError(msg)
+        return input_shape
+
+    def get_output_from_input(self, input_shape):
+        if not self.is_valid_input_shape(input_shape):
+            msg = f"{input_shape} is not a valid input shape."
+            raise ValueError(msg)
+        output_shape = input_shape - self.min_input_shape + self.min_output_shape
+        return output_shape
 
     def rec_forward(self, level, f_in):
-
         # index of level in layer arrays
         i = self.num_levels - level - 1
 
@@ -277,12 +343,9 @@ class UNet(torch.nn.Module):
 
         # end of recursion
         if level == 0:
-
-
             fs_out = [f_left] * self.num_heads
 
         else:
-
             # down
             g_in = self.l_down[i](f_left)
 
@@ -300,7 +363,6 @@ class UNet(torch.nn.Module):
         return fs_out
 
     def forward(self, x):
-
         y = self.rec_forward(self.num_levels - 1, x)
 
         if self.num_heads == 1:
