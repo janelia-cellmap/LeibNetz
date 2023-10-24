@@ -1,4 +1,4 @@
-from networkx import DiGraph
+import networkx as nx
 from torch.nn import Module
 
 import logging
@@ -11,8 +11,22 @@ class LeibNet(Module):
         super().__init__()
         self.nodes = nodes
         self.edges = edges
-        self.graph = DiGraph()
+        self.graph = nx.DiGraph()
         self.assemble()
+
+    def get_ordered_edges(self):
+        # get ordered edges based on graph succession
+        ordered_edges = []
+        for nodes in nx.topological_generations(self.graph):
+            for node in nodes:
+                ordered_edges.extend(
+                    [
+                        edge
+                        for edge in self.graph.in_edges(node, data="edge")
+                        if edge not in ordered_edges
+                    ]
+                )
+        return ordered_edges
 
     def assemble(self):
         # verify that all nodes and edges are unique
@@ -32,10 +46,21 @@ class LeibNet(Module):
         for edge in self.edges:
             self.graph.add_edge(edge.input_node, edge.output_node, edge=edge)
 
+        # check if graph is acyclic
+        if not nx.is_directed_acyclic_graph(self.graph):
+            msg = "Graph is not acyclic."
+            raise ValueError(msg)
+
         # collect input nodes for later use
         self.input_nodes = [
             node for node in self.nodes if self.graph.in_degree(node) == 0
         ]
+        # collect output nodes for later use
+        self.output_nodes = [
+            node for node in self.nodes if self.graph.out_degree(node) == 0
+        ]
+        # define edge call order
+        self.ordered_edges = self.get_ordered_edges()
 
         (
             self.min_input_shape,
@@ -72,9 +97,15 @@ class LeibNet(Module):
             node.add_input(**inputs[node.id])
 
         # march along edges based on graph succession
+        for edge in self.ordered_edges:
+            edge.forward()
 
-        ...
+        # collect outputs
+        outputs = {}
+        for node in self.output_nodes:
+            outputs.update(node.output_buffer)
+
         return outputs
 
     def draw(self):
-        self.graph.draw()
+        nx.draw(self.graph)
