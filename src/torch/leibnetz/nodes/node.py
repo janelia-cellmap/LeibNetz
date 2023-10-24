@@ -4,12 +4,13 @@ from torch.nn import Module
 
 # defines baseclass for all nodes in the network
 class Node(Module):
+    # NOTE: Nodes do not change voxel resolution
     def __init__(self, model, resolution=(1, 1, 1), identifier=None) -> None:
         super().__init__()
         if identifier is None:
             identifier = id(self)
         self.id = identifier
-        self.type = __name__.split(".")[-1]
+        self._type = __name__.split(".")[-1]
         self.model = model
         self.resolution = resolution
         self.ndims = len(resolution)
@@ -22,7 +23,7 @@ class Node(Module):
     def forward(self):
         # implement any parsing of input/output buffers here
         # buffers are dictionaries
-        self.output_buffer = {self.id: self._model(**self.input_buffer)}
+        self.output_buffer = {self.id: self.model(**self.input_buffer)}
 
     def add_input(self, **inputs):
         self.input_buffer.update(inputs)

@@ -9,7 +9,7 @@ class InputNode(Module):
         if identifier is None:
             identifier = id(self)
         self.id = identifier
-        self.type = __name__.split(".")[-1]
+        self._type = __name__.split(".")[-1]
         self.resolution = resolution
         self.ndims = len(resolution)
         (

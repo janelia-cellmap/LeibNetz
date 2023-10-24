@@ -5,7 +5,7 @@ class Pass(Edge):
     def compute_minimal_shapes(self):
         return (
             self.input_node.min_output_shape,
-            (1,) * self.ndims,
+            self.input_node.step_valid_shape,
             self.input_node.min_output_shape,
         )
 

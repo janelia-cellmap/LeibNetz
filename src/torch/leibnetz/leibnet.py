@@ -67,9 +67,9 @@ class LeibNet(Module):
             self.step_valid_shape,
             self.min_output_shape,
         ) = self.compute_minimal_shapes()
-        raise NotImplementedError
 
     def compute_minimal_shapes(self):
+        # analyze graph to determine minimal input/output shapes
         ...
         return min_input_shape, step, min_output_shape
 

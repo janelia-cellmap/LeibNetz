@@ -4,12 +4,13 @@ from torch.nn import Module
 
 # defines baseclass for all edges in the network
 class Edge(Module):
+    # NOTE: Edges can change voxel resolution
     def __init__(self, input_node, output_node, model, identifier=None) -> None:
         super().__init__()
         if identifier is None:
             identifier = id(self)
         self.id = identifier
-        self.type = __name__.split(".")[-1]
+        self._type = __name__.split(".")[-1]
         self.input_node = input_node
         self.output_node = output_node
         self.model = model
