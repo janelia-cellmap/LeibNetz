@@ -197,8 +197,8 @@ if __name__ == "__main__":
     edge0_2 = Edge(conv1_1, conv0_1, identifier="edge0_2")
 
     # define skip connections
-    edge0_3 = Skip(conv0_0, conv0_1, identifier="edge0_3")
-    edge1_2 = Skip(conv1_0, conv1_1, identifier="edge1_2")
+    edge0_3 = Edge(conv0_0, conv0_1, identifier="edge0_3")
+    edge1_2 = Edge(conv1_0, conv1_1, identifier="edge1_2")
 
     # create leibnet
     leibnet = LeibNet(

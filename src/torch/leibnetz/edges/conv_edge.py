@@ -1,5 +1,5 @@
 import torch
-from edge_ops import Upsample, ConvDownsample, MaxDownsample
+from edge_ops import Upsample, ConvDownsample
 from leibnetz.nodes.node_ops import ConvPass
 
 
@@ -19,11 +19,11 @@ class ConvEdge(torch.nn.Module):
         self.kernel_sizes = kernel_sizes
         self.input_nc = input_node.output_nc
         self.output_nc = output_node.input_nc
-        self.next_conv_kernel_sizes = output_node.kernel_sizes
         self.ndims = input_node.ndims
         self.scale_factor = output_node.resolution / input_node.resolution
         if all(self.scale_factor == 1):
             self.model = ConvPass(self.input_nc, self.output_nc, self.kernel_sizes)
+            self._type = "conv_pass"
         elif all(self.scale_factor <= 1):
             self.model = ConvDownsample(
                 self.input_nc,
@@ -31,7 +31,9 @@ class ConvEdge(torch.nn.Module):
                 self.kernel_sizes,
                 (1 / self.scale_factor).astype(int),
             )
+            self._type = "conv_downsample"
         elif all(self.scale_factor >= 1):
+            self.next_conv_kernel_sizes = output_node.kernel_sizes
             self._model = lambda crop_factor: Upsample(
                 self.scale_factor.astype(int),
                 mode="transposed_conv",
@@ -41,6 +43,11 @@ class ConvEdge(torch.nn.Module):
                 next_conv_kernel_sizes=self.next_conv_kernel_sizes,
             )
             self.model = None
+            self._type = "conv_upsample"
+        else:
+            raise NotImplementedError(
+                "Simultaneous up- and downsampling not implemented"
+            )
 
     def set_crop_factor(self, crop_factor):
         self.model = self._model(crop_factor)
