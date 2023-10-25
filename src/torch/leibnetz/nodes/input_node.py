@@ -1,4 +1,3 @@
-from abc import abstractmethod
 from torch.nn import Module
 
 
@@ -12,11 +11,7 @@ class InputNode(Module):
         self._type = __name__.split(".")[-1]
         self.resolution = resolution
         self.ndims = len(resolution)
-        (
-            self.min_input_shape,
-            self.step_valid_shape,
-            self.min_output_shape,
-        ) = self.compute_minimal_shapes()
+        self.compute_minimal_shapes()
 
     def forward(self):
         # implement any parsing of input/output buffers here
@@ -24,4 +19,6 @@ class InputNode(Module):
         self.output_buffer = self.input_buffer
 
     def compute_minimal_shapes(self):
-        return (1,) * self.ndims, (1,) * self.ndims, (1,) * self.ndims
+        self.min_input_voxels = (1,) * self.ndims
+        self.min_input_shape = self.min_input_voxels * self.resolution
+        self.min_output_shape = self.step_valid_shape = self.resolution

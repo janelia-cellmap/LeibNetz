@@ -62,16 +62,17 @@ class LeibNet(Module):
         # define edge call order
         self.ordered_edges = self.get_ordered_edges()
 
-        (
-            self.min_input_shape,
-            self.step_valid_shape,
-            self.min_output_shape,
-        ) = self.compute_minimal_shapes()
+        self.compute_minimal_shapes()
 
     def compute_minimal_shapes(self):
         # analyze graph to determine minimal input/output shapes
-        ...
-        return min_input_shape, step, min_output_shape
+        raise NotImplementedError
+        for edge in self.ordered_edges:
+            if edge.model is None:
+                edge.set_crop_factor(crop_factor)
+        self.min_input_shape = ...
+        self.step_valid_shape = ...
+        self.min_output_shape = ...
 
     def is_valid_input_shape(self, input_shape):
         return (input_shape >= self.min_input_shape).all() and (
@@ -109,3 +110,98 @@ class LeibNet(Module):
 
     def draw(self):
         nx.draw(self.graph)
+
+
+if __name__ == "__main__":
+    # make a simple affinity prediction UNet
+    from .nodes import InputNode, Node
+    from .edges import Edge, Skip
+    from src.torch.leibnetz.nodes.node_ops import ConvPass
+    import numpy as np
+
+    base_resolution = np.array([8, 8, 8])
+    # define input node
+    input_node = InputNode(resolution=base_resolution, identifier="input")
+
+    # define nodes
+    conv0_0 = Node(
+        ConvPass(
+            1,
+            12,
+            [
+                (3,) * 3,
+            ]
+            * 2,
+        ),
+        resolution=base_resolution * 2**0,
+        identifier="conv0_0",
+    )
+    conv1_0 = Node(
+        ConvPass(
+            12,
+            24,
+            [
+                (3,) * 3,
+            ]
+            * 2,
+        ),
+        resolution=base_resolution * 2**1,
+        identifier="conv1_0",
+    )
+    conv2 = Node(
+        ConvPass(
+            24,
+            48,
+            [
+                (3,) * 3,
+            ]
+            * 2,
+        ),
+        resolution=base_resolution * 2**2,
+        identifier="conv2",
+    )
+    conv0_1 = Node(
+        ConvPass(
+            24,
+            12,
+            [
+                (3,) * 3,
+            ]
+            * 2,
+        ),
+        resolution=base_resolution * 2**0,
+        identifier="conv0_1",
+    )
+    conv1_1 = Node(
+        ConvPass(
+            48,
+            24,
+            [
+                (3,) * 3,
+            ]
+            * 2,
+        ),
+        resolution=base_resolution * 2**1,
+        identifier="conv1_1",
+    )
+
+    # define input edge
+    edge0_0 = Edge(input_node, conv0_0, identifier="edge0_0")
+
+    # define downsample edges
+    edge0_1 = Edge(conv0_0, conv1_0, identifier="edge0_1")
+    edge1_0 = Edge(conv1_0, conv2, identifier="edge1_0")
+
+    # define upsample edges
+    edge1_1 = Edge(conv2, conv1_1, identifier="edge1_1")
+    edge0_2 = Edge(conv1_1, conv0_1, identifier="edge0_2")
+
+    # define skip connections
+    edge0_3 = Skip(conv0_0, conv0_1, identifier="edge0_3")
+    edge1_2 = Skip(conv1_0, conv1_1, identifier="edge1_2")
+
+    # create leibnet
+    leibnet = LeibNet(
+        [input_node, conv0_0, conv1_0, conv2, conv0_1, conv1_1],
+        [edge0_0, edge0_1, edge1_0, edge1_1, edge0_2, edge0_3, edge1_2],
+    )
