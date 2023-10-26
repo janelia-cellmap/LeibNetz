@@ -1,5 +1,5 @@
 # adapted from funlib.learn.torch.models
-
+# %%
 from funlib.learn.torch.models.conv4d import Conv4d
 import math
 import numpy as np
@@ -151,7 +151,7 @@ class UNet(torch.nn.Module):
             kernel_size_up = [[(3,) * self.ndims, (3,) * self.ndims]] * (
                 self.num_levels - 1
             )
-        self.kernel_size_up - kernel_size_up
+        self.kernel_size_up = kernel_size_up
         self.downsample_factors = downsample_factors
 
         # compute crop factors for translation equivariance
@@ -369,3 +369,6 @@ class UNet(torch.nn.Module):
             return y[0]
 
         return y
+
+
+# %%

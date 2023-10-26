@@ -1,6 +1,7 @@
 import math
 from torch import nn
 import torch
+from funlib.learn.torch.models.conv4d import Conv4d
 
 
 class ConvDownsample(nn.Module):
@@ -47,8 +48,7 @@ class ConvDownsample(nn.Module):
 
         self.dims = len(kernel_sizes)
 
-        # conv = {2: nn.Conv2d, 3: nn.Conv3d, 4: Conv4d}[self.dims]
-        conv = {2: nn.Conv2d, 3: nn.Conv3d}[self.dims]
+        conv = {2: nn.Conv2d, 3: nn.Conv3d, 4: Conv4d}[self.dims]
 
         try:
             layers.append(
