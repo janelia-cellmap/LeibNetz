@@ -4,12 +4,15 @@ from torch.nn import Module
 
 # defines baseclass for all nodes in the network
 class Node(Module):
-    # NOTE: Nodes do not change voxel resolution
-    def __init__(self, model, resolution=(1, 1, 1), identifier=None) -> None:
+    def __init__(
+        self, model, input_keys, output_keys, resolution=(1, 1, 1), identifier=None
+    ) -> None:
         super().__init__()
         if identifier is None:
             identifier = id(self)
         self.id = identifier
+        self.input_keys = input_keys
+        self.output_keys = output_keys
         self._type = __name__.split(".")[-1]
         self.model = model
         self.resolution = np.array(resolution)
@@ -17,17 +20,11 @@ class Node(Module):
         self.compute_minimal_shapes()
         self._least_common_resolution = None
 
-    def forward(self):
+    def forward(self, **inputs):
         # implement any parsing of input/output buffers here
         # buffers are dictionaries
-        self.output_buffer = {self.id: self.model(**self.input_buffer)}
-
-    def add_input(self, inputs):
-        self.input_buffer.update(inputs)
-
-    def clear_buffer(self):
-        self.input_buffer = {}
-        self.output_buffer = None
+        outputs = self.model(**inputs)
+        return {key: val for key, val in zip(self.output_keys, outputs)}
 
     # @property
     # def least_common_resolution(self):
