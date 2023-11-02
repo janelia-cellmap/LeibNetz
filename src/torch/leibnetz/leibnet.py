@@ -62,6 +62,19 @@ class LeibNet(Module):
         # define edge call order
         self.ordered_edges = self.get_ordered_edges()
 
+        # walk along input paths for each node to determine lowest common resolution
+        for node in self.nodes:
+            if node not in self.input_nodes:
+                resolutions = []
+                ancestors = nx.ancestors(self.graph, node)
+                for ancestor in ancestors:
+                    if hasattr(ancestor, "_least_common_resolution"):
+                        resolutions.append(ancestor._least_common_resolution)
+                        for elder in nx.ancestors(self.graph, ancestor):
+                            ancestors.remove(elder)
+                    else:
+                        resolutions.append(ancestor.resolution)
+                node._least_common_resolution = np.lcm.reduce(resolutions)
         # self.compute_minimal_shapes()
 
     def compute_minimal_shapes(self):

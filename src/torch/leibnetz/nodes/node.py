@@ -15,6 +15,7 @@ class Node(Module):
         self.resolution = np.array(resolution)
         self.ndims = len(resolution)
         self.compute_minimal_shapes()
+        self._least_common_resolution = None
 
     def forward(self):
         # implement any parsing of input/output buffers here
@@ -27,6 +28,12 @@ class Node(Module):
     def clear_buffer(self):
         self.input_buffer = {}
         self.output_buffer = None
+
+    # @property
+    # def least_common_resolution(self):
+    #     if self._least_common_resolution is None:
+    #         self._least_common_resolution = np.lcm.reduce(ance)
+    #     return self._least_common_resolution
 
     def compute_minimal_shapes(self):
         # TODO: this is designed assuming a convolutional model
