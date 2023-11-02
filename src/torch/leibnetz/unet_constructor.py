@@ -1,6 +1,6 @@
-from leibnet import LeibNet
-from nodes import Node, ConvPass, InputNode
-from edges import Edge
+from .leibnet import LeibNet
+from .nodes import Node, ConvPass, InputNode
+from .edges import Edge
 import numpy as np
 
 

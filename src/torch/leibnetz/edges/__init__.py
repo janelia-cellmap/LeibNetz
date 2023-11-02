@@ -1,3 +1,2 @@
-from edge import Edge
-from skip import Skip
-from edge_ops import Upsample, ConvDownsample, MaxDownsample
+from .edge import Edge
+from .edge_ops import Upsample, ConvDownsample, MaxDownsample

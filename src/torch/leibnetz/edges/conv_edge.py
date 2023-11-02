@@ -1,5 +1,5 @@
 import torch
-from edge_ops import Upsample, ConvDownsample
+from .edge_ops import Upsample, ConvDownsample
 from leibnetz.nodes.node_ops import ConvPass
 
 

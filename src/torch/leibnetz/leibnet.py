@@ -22,7 +22,7 @@ class LeibNet(Module):
                 ordered_edges.extend(
                     [
                         edge
-                        for edge in self.graph.in_edges(node, data="edge")
+                        for _, _, edge in self.graph.in_edges(node, data="edge")
                         if edge not in ordered_edges
                     ]
                 )
@@ -62,7 +62,7 @@ class LeibNet(Module):
         # define edge call order
         self.ordered_edges = self.get_ordered_edges()
 
-        self.compute_minimal_shapes()
+        # self.compute_minimal_shapes()
 
     def compute_minimal_shapes(self):
         # analyze graph to determine minimal input/output shapes
@@ -85,9 +85,9 @@ class LeibNet(Module):
         # outputs is a dictionary of tensors
 
         # check if inputs are valid
-        if not self.is_valid_input_shape(inputs):
-            msg = f"{inputs} is not a valid input shape."
-            raise ValueError(msg)
+        # if not self.is_valid_input_shape(inputs):
+        #     msg = f"{inputs} is not a valid input shape."
+        #     raise ValueError(msg)
 
         # initialize buffers
         for node in self.nodes:
@@ -95,7 +95,7 @@ class LeibNet(Module):
 
         # add inputs to appropriate buffers
         for node in self.input_nodes:
-            node.add_input(**inputs[node.id])
+            node.add_input({node.id: inputs[node.id]})
 
         # march along edges based on graph succession
         for edge in self.ordered_edges:

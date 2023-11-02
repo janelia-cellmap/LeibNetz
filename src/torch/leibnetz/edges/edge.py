@@ -1,5 +1,5 @@
 import torch
-from edge_ops import Upsample, MaxDownsample
+from .edge_ops import Upsample, MaxDownsample
 
 
 # defines baseclass for all edges in the network
@@ -42,4 +42,4 @@ class Edge(torch.nn.Module):
         if self.input_node.output_buffer is None:
             self.input_node.forward()
         output = {self.id: self.model(**self.input_node.output_buffer)}
-        self.output_node.add_input(**output)
+        self.output_node.add_input(output)

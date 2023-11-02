@@ -21,7 +21,7 @@ class Node(Module):
         # buffers are dictionaries
         self.output_buffer = {self.id: self.model(**self.input_buffer)}
 
-    def add_input(self, **inputs):
+    def add_input(self, inputs):
         self.input_buffer.update(inputs)
 
     def clear_buffer(self):
@@ -34,7 +34,7 @@ class Node(Module):
         kernel_sizes = []
         for i, module in enumerate(self.model.modules()):
             if i == 0:
-                self.input_nc = module.in_channels
+                self.input_nc = module.input_nc
             if hasattr(module, "padding") and module.padding == "same":
                 continue
             if hasattr(module, "kernel_size"):
