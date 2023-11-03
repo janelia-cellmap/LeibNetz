@@ -78,18 +78,28 @@ class LeibNet(Module):
                     else:
                         resolutions.append(ancestor.resolution)
                 node._least_common_resolution = np.lcm.reduce(resolutions)
-        
-        # determine order of nodes
-        self.ordered_nodes = list(nx.topological_sort(self.graph))
+
+        # determine quasi-optimal order of nodes (in reverse order)
+        self.ordered_nodes = list(nx.topological_sort(self.graph.reverse()))
 
         # determine arrays that can be dropped after each node is run
-        self.drop_arrays = {}
-        for node in self.ordered_nodes:
-            self.drop_arrays[node] = []
-            for ancestor in nx.ancestors(self.graph, node):
-                if hasattr(ancestor, "output_keys"):
-                    self.drop_arrays[node] += ancestor.output_keys
-                    
+        self.flushable_arrays = [
+            [],
+        ] * len(self.ordered_nodes)
+        flushed_arrays = []
+        for i, node in enumerate(self.ordered_nodes):
+            for input_key in node.input_keys:
+                if (
+                    input_key not in flushed_arrays
+                    and input_key not in self.output_keys
+                ):
+                    self.flushable_arrays[i].append(input_key)
+                    flushed_arrays.append(input_key)
+
+        # correct order of lists
+        self.ordered_nodes = self.ordered_nodes[::-1]
+        self.flushable_arrays = self.flushable_arrays[::-1]
+
         # self.compute_minimal_shapes()
 
     def compute_minimal_shapes(self):
@@ -121,21 +131,21 @@ class LeibNet(Module):
         self.buffer = inputs
 
         # march along nodes based on graph succession
-        for nodes in nx.topological_generations(self.graph): # this isn't the proper order
-            for node in nodes:
-                self.buffer.update(node.forward(self.buffer[node.input_keys]))
-            
-            # need to clear unnecessary buffers
+        for flushable_list, node in zip(self.flushable_arrays, self.ordered_nodes):
+            self.buffer.update(node.forward(self.buffer[node.input_keys]))
+
+            # clear unnecessary arrays from buffer
             if not self.retain_buffer:
+                for key in flushable_list:
+                    del self.buffer[key]
 
+        # # collect outputs
+        # outputs = {}
+        # for output_key in self.output_keys:
+        #     outputs.update(self.buffer[output_key])
 
-        # collect outputs
-        outputs = {}
-        for output_key in self.output_keys:
-            outputs.update(self.buffer[output_key])
-
-
-        return outputs
+        # return outputs
+        return self.buffer
 
     def draw(self):
         nx.draw(self.graph)
