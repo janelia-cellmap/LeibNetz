@@ -42,6 +42,8 @@ class ConvPass(nn.Module):
 
         self.residual = residual
         self.padding = padding
+        self.padding_mode = padding_mode
+        self.norm_layer = norm_layer
         self.input_nc = input_nc
         self.output_nc = output_nc
         self.kernel_sizes = kernel_sizes

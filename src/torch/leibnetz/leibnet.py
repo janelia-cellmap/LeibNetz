@@ -2,6 +2,7 @@ import networkx as nx
 from torch.nn import Module
 import matplotlib.pyplot as plt
 import numpy as np
+from .nodes import Node
 
 import logging
 
@@ -45,6 +46,22 @@ class LeibNet(Module):
                     self.graph.add_edge(
                         self.graph.nodes[output_to_node_id[input_key]], node
                     )
+                if hasattr(node, "scale_factor"):
+                    if hasattr(node, "input_nc"):
+                        node.set_resample_params(
+                            input_resolution=self.graph.nodes[
+                                output_to_node_id[input_key]
+                            ].resolution,
+                            input_nc=self.graph.nodes[
+                                output_to_node_id[input_key]
+                            ].output_nc,
+                        )
+                    else:
+                        node.set_resample_params(
+                            input_resolution=self.graph.nodes[
+                                output_to_node_id[input_key]
+                            ].resolution
+                        )
 
         # check if graph is acyclic
         if not nx.is_directed_acyclic_graph(self.graph):
