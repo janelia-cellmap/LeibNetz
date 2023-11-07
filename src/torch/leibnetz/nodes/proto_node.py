@@ -4,26 +4,35 @@ import numpy as np
 from torch.nn import Module
 
 
-# defines baseclass for all nodes in the network
-class Node(Module):
+# defines class for fast prototyping of nodes
+class ProtoNode(Module):
     id: Any
     output_keys: Iterable[str]
     _type: str
 
-    def __init__(self, output_keys, resolution=(1, 1, 1), identifier=None) -> None:
+    def __init__(
+        self,
+        output_keys,
+        output_key_channels=None,
+        resolution=(1, 1, 1),
+        identifier=None,
+    ) -> None:
         super().__init__()
         if identifier is None:
             identifier = id(self)
         self.id = identifier
         self.output_keys = output_keys
+        self.output_key_channels = output_key_channels
         self._type = __name__.split(".")[-1]
         self.resolution = np.array(resolution)
         self.ndims = len(resolution)
         self._least_common_resolution = None
 
-    @abstractmethod
     def forward(self, **inputs):
-        raise NotImplementedError
+        # implement any parsing of input/output buffers here
+        # buffers are dictionaries
+        outputs = self.model(**inputs)
+        return {key: val for key, val in zip(self.output_keys, outputs)}
 
     @abstractmethod
     def compute_minimal_shapes(self):

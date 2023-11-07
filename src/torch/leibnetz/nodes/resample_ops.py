@@ -132,18 +132,9 @@ class Upsample(nn.Module):
         mode=None,
         input_nc=None,
         output_nc=None,
-        crop_factor=None,
-        next_conv_kernel_sizes=None,
     ):
         super(Upsample, self).__init__()
 
-        if crop_factor is not None:
-            assert (
-                next_conv_kernel_sizes is not None
-            ), "crop_factor and next_conv_kernel_sizes have to be given together"
-
-        self.crop_factor = crop_factor
-        self.next_conv_kernel_sizes = next_conv_kernel_sizes
         self.dims = len(scale_factor)
 
         if mode == "transposed_conv":

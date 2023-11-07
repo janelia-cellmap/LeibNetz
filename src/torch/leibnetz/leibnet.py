@@ -31,6 +31,7 @@ class LeibNet(Module):
                     msg = f"Output {output} is not unique."
                     raise ValueError(msg)
                 output_to_node_id[output] = node.id
+        self.output_to_node_id = output_to_node_id
 
         if len(node_ids) != len(set(node_ids)):
             msg = "Node identifiers are not unique."
@@ -46,7 +47,9 @@ class LeibNet(Module):
                     self.graph.add_edge(
                         self.graph.nodes[output_to_node_id[input_key]], node
                     )
-                if hasattr(node, "scale_factor"):
+                if hasattr(
+                    node, "set_resample_params"
+                ):  # TODO: decide how much require user to pass to node, and how much to infer
                     if hasattr(node, "input_nc"):
                         node.set_resample_params(
                             input_resolution=self.graph.nodes[
@@ -76,6 +79,11 @@ class LeibNet(Module):
         self.output_nodes = [
             node for node in self.nodes if self.graph.out_degree(node) == 0
         ]
+
+        # collect input_keys
+        self.input_keys = []
+        for node in self.input_nodes:
+            self.input_keys += node.input_keys
 
         # collect output_keys
         self.output_keys = []
@@ -121,26 +129,52 @@ class LeibNet(Module):
 
     def compute_minimal_shapes(self):
         # analyze graph to determine minimal input/output shapes
-        raise NotImplementedError
-        for edge in self.ordered_edges:
-            if edge.model is None:
-                edge.set_crop_factor(crop_factor)
-        self.min_input_shape = ...
-        self.step_valid_shape = ...
-        self.min_output_shape = ...
+        # first find minimal output shapes (1x1x1 at lowest resolution)
+        # NOTE: expects the output_keys to come from nodes that have realworld unit resolutions (i.e. not classifications)
+        least_common_resolutions = []
+        for output_key in self.output_keys:
+            least_common_resolutions.append(
+                self.graph.nodes[
+                    self.output_to_node_id[output_key]
+                ]._least_common_resolution
+            )
+        self.min_output_shapes = {
+            key: np.lcm.reduce(least_common_resolutions) for key in self.output_keys
+        }
+        self.step_valid_shapes = self.min_output_shapes  # TODO: is this correct?
 
-    def is_valid_input_shape(self, input_shape):
-        return (input_shape >= self.min_input_shape).all() and (
-            (input_shape - self.min_input_shape) % self.step_valid_shape == 0
+        # then find minimal input shapes
+        array_shapes = {}
+        for node in self.ordered_nodes[::-1]:
+            for input_key in node.input_keys:
+                array_shapes[input_key] = node.get_input_from_output(
+                    array_shapes[node.output_keys[0]]
+                )
+        self.min_input_shape = {}
+        for input_key in self.input_keys:
+            self.min_input_shapes[input_key] = array_shapes[input_key]
+
+    def is_valid_input_shape(self, input_key, input_shape):
+        return (input_shape >= self.min_input_shape[input_key]).all() and (
+            (input_shape - self.min_input_shape[input_key])
+            % self.step_valid_shapes[input_key]
+            == 0
         ).all()
+
+    def check_input_shapes(self, inputs: dict):
+        # check if inputs are valid
+        shapes_valid = True
+        for input_key, val in inputs.items():
+            shapes_valid &= self.is_valid_input_shape(input_key, val.shape)
+        return shapes_valid
 
     def forward(self, **inputs):
         # function for forwarding data through the network
         # inputs is a dictionary of tensors
         # outputs is a dictionary of tensors
 
-        # check if inputs are valid
-        # if not self.is_valid_input_shape(inputs):
+        # # check if inputs are valid
+        # if not self.check_input_shapes(inputs):
         #     msg = f"{inputs} is not a valid input shape."
         #     raise ValueError(msg)
 
@@ -149,7 +183,11 @@ class LeibNet(Module):
 
         # march along nodes based on graph succession
         for flushable_list, node in zip(self.flushable_arrays, self.ordered_nodes):
-            self.buffer.update(node.forward(self.buffer[node.input_keys]))
+            # TODO: determine how to make inputs optional
+            try:
+                self.buffer.update(node.forward(self.buffer[node.input_keys]))
+            except KeyError:
+                logger.warning(f"Node {node} is missing inputs.")
 
             # clear unnecessary arrays from buffer
             if not self.retain_buffer:

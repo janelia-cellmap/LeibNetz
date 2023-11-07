@@ -10,7 +10,7 @@ class ConvResampleNode(torch.nn.Module):
         output_keys,
         resolution=(1, 1, 1),
         kernel_sizes=None,
-        output_nc=None,
+        output_nc=1,
         identifier=None,
     ) -> None:
         super().__init__(output_keys, resolution, identifier)
@@ -53,3 +53,15 @@ class ConvResampleNode(torch.nn.Module):
     def forward(self, **inputs):
         outputs = self.model(**inputs)
         return {key: val for key, val in zip(self.output_keys, outputs)}
+
+    def compute_minimal_shapes(self):
+        raise NotImplementedError
+
+    def is_valid_input_shape(self, input_shape):
+        raise NotImplementedError
+
+    def get_input_from_output(self, output_shape):
+        raise NotImplementedError
+
+    def get_output_from_input(self, input_shape):
+        raise NotImplementedError
