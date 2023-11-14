@@ -12,6 +12,7 @@ class ProtoNode(Module):
 
     def __init__(
         self,
+        model,
         output_keys,
         output_key_channels=None,
         resolution=(1, 1, 1),
@@ -21,6 +22,7 @@ class ProtoNode(Module):
         if identifier is None:
             identifier = id(self)
         self.id = identifier
+        self.model = model
         self.output_keys = output_keys
         self.output_key_channels = output_key_channels
         self._type = __name__.split(".")[-1]
@@ -32,6 +34,12 @@ class ProtoNode(Module):
         # implement any parsing of input/output buffers here
         # buffers are dictionaries
         outputs = self.model(**inputs)
+
+        # split outputs into separate tensors
+        if self.output_key_channels is not None:
+            outputs = torch.split(outputs, self.output_key_channels, dim=1)
+        elif len(self.output_keys) > 1:
+            outputs = torch.split(outputs, len(self.output_keys), dim=1)
         return {key: val for key, val in zip(self.output_keys, outputs)}
 
     @abstractmethod
@@ -49,10 +57,3 @@ class ProtoNode(Module):
     @abstractmethod
     def get_output_from_input(self, input_shapes):
         raise NotImplementedError
-
-    def check_input_shapes(self, inputs: dict):
-        # check if inputs are valid
-        shapes_valid = True
-        for input_key, val in inputs.items():
-            shapes_valid &= self.is_valid_input_shape(input_key, val.shape)
-        return shapes_valid
