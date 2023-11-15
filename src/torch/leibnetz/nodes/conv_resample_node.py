@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 from .resample_ops import Upsample, ConvDownsample
 from .node_ops import ConvPass
@@ -8,28 +9,22 @@ class ConvResampleNode(torch.nn.Module):
         self,
         input_keys,
         output_keys,
-        resolution=(1, 1, 1),
+        scale_factor=(1, 1, 1),
         kernel_sizes=None,
+        input_nc=1,
         output_nc=1,
         identifier=None,
     ) -> None:
-        super().__init__(output_keys, resolution, identifier)
+        super().__init__(input_keys, output_keys, identifier)
         self._type = __name__.split(".")[-1]
-        self.input_keys = input_keys
         self.kernel_sizes = kernel_sizes
         self.output_nc = output_nc
-        self.input_nc = None
-        self.scale_factor = None
-        self.input_resolution = None
-
-    def set_resample_params(self, input_resolution, input_nc):
-        self.input_resolution = input_resolution
+        self.scale_factor = np.array(scale_factor)
         self.input_nc = input_nc
-        self.scale_factor = self.resolution / self.input_resolution
-        if all(self.scale_factor == 1):
+        if np.all(self.scale_factor == 1):
             self.model = ConvPass(self.input_nc, self.output_nc, self.kernel_sizes)
             self._type = "conv_pass"
-        elif all(self.scale_factor <= 1):
+        elif np.all(self.scale_factor <= 1):
             self.model = ConvDownsample(
                 self.input_nc,
                 self.output_nc,
@@ -37,7 +32,7 @@ class ConvResampleNode(torch.nn.Module):
                 (1 / self.scale_factor).astype(int),
             )
             self._type = "conv_downsample"
-        elif all(self.scale_factor >= 1):
+        elif np.all(self.scale_factor >= 1):
             self.model = Upsample(
                 self.scale_factor.astype(int),
                 mode="transposed_conv",

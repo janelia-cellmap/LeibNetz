@@ -19,11 +19,9 @@ class ConvPassNode(Node):
         residual=False,
         padding_mode="reflect",
         norm_layer=None,
-        resolution=(1, 1, 1),
         identifier=None,
     ) -> None:
-        super().__init__(output_keys, resolution, identifier)
-        self.input_keys = input_keys
+        super().__init__(input_keys, output_keys, identifier)
         self.output_key_channels = output_key_channels
         self._type = __name__.split(".")[-1]
         self.input_nc = input_nc
@@ -44,7 +42,7 @@ class ConvPassNode(Node):
             padding_mode=padding_mode,
             norm_layer=norm_layer,
         )
-        self.compute_minimal_shapes()
+        self._convolution_crop = None
 
     def forward(self, **inputs):
         # implement any parsing of input/output buffers here
@@ -64,53 +62,30 @@ class ConvPassNode(Node):
             outputs = torch.split(outputs, len(self.output_keys), dim=1)
         return {key: val for key, val in zip(self.output_keys, outputs)}
 
-    def compute_minimal_shapes(self):
-        # TODO: inlcude crop_to_factor in this computation
-        lost_voxels = np.zeros(self.ndims, dtype=int)
-        kernel_sizes = []
-        for i, module in enumerate(self.model.modules()):
-            if i == 0:
-                self.input_nc = module.input_nc
-            if hasattr(module, "padding") and module.padding == "same":
-                continue
-            if hasattr(module, "kernel_size"):
-                lost_voxels += np.array(module.kernel_size) - 1
-                kernel_sizes.append(module.kernel_size)
-            if hasattr(module, "stride"):
-                # not sure what to do here...
-                ...
-            if hasattr(module, "dilation"):
-                # not sure what to do here...
-                ...
-            if hasattr(module, "output_padding"):
-                # not sure if this is correct...
-                lost_voxels -= np.array(module.output_padding) * 2
-            if hasattr(module, "out_channels"):
-                self.output_nc = module.out_channels
-        self.kernel_sizes = kernel_sizes
-        self.min_input_voxels = lost_voxels + 1
-        self.min_input_shape = self.min_input_voxels * self.resolution
-        self.min_output_shape = self.step_valid_shape = self.resolution
+    # the crop that will already be done due to the convolutions
+    @property
+    def convolution_crop(self):
+        if self._convolution_crop is None:
+            lost_voxels = np.zeros(self.ndims, dtype=int)
+            for module in self.model.modules():
+                if hasattr(module, "padding") and module.padding == "same":
+                    continue
+                if hasattr(module, "kernel_size"):
+                    lost_voxels += np.array(module.kernel_size) - 1
+            self._convolution_crop = lost_voxels
+        return self._convolution_crop
 
-    def is_valid_input_shape(self, input_shape):
-        return (input_shape >= self.min_input_shape).all() and (
-            (input_shape - self.min_input_shape) % self.step_valid_shape == 0
-        ).all()
+    def get_input_from_output_shape(self, output_shape):
+        input_shape = output_shape + self.convolution_crop
+        return {key: (input_shape, (1,) * self.ndims) for key in self.input_keys}
 
-    def get_input_from_output(self, output_shape):
-        input_shape = output_shape + self.min_input_shape - self.min_output_shape
-        if not self.is_valid_input_shape(input_shape):
-            raise ValueError(f"{output_shape} is not valid output_shape.")
-        return input_shape
+    def get_output_from_input_shape(self, input_shape):
+        output_shape = (
+            input_shape - self.factor_crop(input_shape) - self.convolution_crop
+        )
+        return {key: (output_shape, (1,) * self.ndims) for key in self.output_keys}
 
-    def get_output_from_input(self, input_shape):
-        if not self.is_valid_input_shape(input_shape):
-            msg = f"{input_shape} is not a valid input shape."
-            raise ValueError(msg)
-        output_shape = input_shape - self.min_input_shape + self.min_output_shape
-        return output_shape
-
-    def crop_to_factor(self, x):
+    def factor_crop(self, input_shape):
         """Crop feature maps to ensure translation equivariance with stride of
         upsampling factor. This should be done right after upsampling, before
         application of the convolutions with the given kernel sizes.
@@ -118,18 +93,8 @@ class ConvPassNode(Node):
         The crop could be done after the convolutions, but it is more efficient
         to do that before (feature maps will be smaller).
         """
-
-        factor = self._least_common_resolution / self.resolution
-        shape = x.size()
-        spatial_shape = shape[-self.ndims :]
-
-        # the crop that will already be done due to the convolutions
-        convolution_crop = tuple(
-            sum(ks[d] - 1 for ks in self.kernel_sizes) for d in range(self.ndims)
-        )
-
-        # we need (spatial_shape - convolution_crop) to be a multiple of
-        # factor, i.e.:
+        # we need (spatial_shape - self.convolution_crop) to be a multiple of
+        # self.least_common_scale, i.e.:
         #
         # (s - c) = n*k
         #
@@ -143,19 +108,28 @@ class ConvPassNode(Node):
 
         ns = (
             int(math.floor(float(s - c) / f))
-            for s, c, f in zip(spatial_shape, convolution_crop, factor)
+            for s, c, f in zip(
+                input_shape, self.convolution_crop, self.least_common_scale
+            )
         )
         target_spatial_shape = tuple(
-            n * f + c for n, c, f in zip(ns, convolution_crop, factor)
+            n * f + c
+            for n, c, f in zip(ns, self.convolution_crop, self.least_common_scale)
         )
 
+        return input_shape - target_spatial_shape
+
+    def crop_to_factor(self, x):
+        shape = x.size()
+        spatial_shape = shape[-self.ndims :]
+        target_spatial_shape = spatial_shape - self.factor_crop(spatial_shape)
         if target_spatial_shape != spatial_shape:
             assert all(
-                ((t > c) for t, c in zip(target_spatial_shape, convolution_crop))
+                ((t > c) for t, c in zip(target_spatial_shape, self.convolution_crop))
             ), (
                 "Feature map with shape %s is too small to ensure "
-                "translation equivariance with factor %s and following "
-                "convolutions %s" % (shape, factor, self.kernel_sizes)
+                "translation equivariance with self.least_common_scale %s and following "
+                "convolutions %s" % (shape, self.least_common_scale, self.kernel_sizes)
             )
 
             return self.crop(x, target_spatial_shape)

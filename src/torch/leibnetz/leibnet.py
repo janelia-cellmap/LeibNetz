@@ -1,3 +1,4 @@
+from typing import Sequence, Tuple
 import networkx as nx
 from torch.nn import Module
 import matplotlib.pyplot as plt
@@ -14,10 +15,10 @@ class LeibNet(Module):
         super().__init__()
         self.nodes = nodes
         self.graph = nx.DiGraph()
-        self.assemble()
+        # self.assemble()
         self.retain_buffer = False
 
-    def assemble(self):
+    def assemble(self, outputs: dict[str, Sequence[Tuple]]):
         # verify that all nodes and edges are unique
         node_ids = []
         output_to_node_id = {}
@@ -46,26 +47,7 @@ class LeibNet(Module):
                 if input_key in output_to_node_id:
                     self.graph.add_edge(
                         self.graph.nodes[output_to_node_id[input_key]], node
-                    )
-                if hasattr(
-                    node, "set_resample_params"
-                ):  # TODO: decide how much require user to pass to node, and how much to infer
-                    if hasattr(node, "input_nc"):
-                        node.set_resample_params(
-                            input_resolution=self.graph.nodes[
-                                output_to_node_id[input_key]
-                            ].resolution,
-                            input_nc=self.graph.nodes[
-                                output_to_node_id[input_key]
-                            ].output_nc,
-                        )
-                    else:
-                        node.set_resample_params(
-                            input_resolution=self.graph.nodes[
-                                output_to_node_id[input_key]
-                            ].resolution
-                        )
-
+                    )                
         # check if graph is acyclic
         if not nx.is_directed_acyclic_graph(self.graph):
             msg = "Graph is not acyclic."
@@ -90,20 +72,6 @@ class LeibNet(Module):
         for node in self.output_nodes:
             self.output_keys += node.output_keys
 
-        # walk along input paths for each node to determine lowest common resolution
-        for node in self.nodes:
-            if node not in self.input_nodes:
-                resolutions = []
-                ancestors = nx.ancestors(self.graph, node)
-                for ancestor in ancestors:
-                    if hasattr(ancestor, "_least_common_resolution"):
-                        resolutions.append(ancestor._least_common_resolution)
-                        for elder in nx.ancestors(self.graph, ancestor):
-                            ancestors.remove(elder)
-                    else:
-                        resolutions.append(ancestor.resolution)
-                node._least_common_resolution = np.lcm.reduce(resolutions)
-
         # determine quasi-optimal order of nodes (in reverse order)
         self.ordered_nodes = list(nx.topological_sort(self.graph.reverse()))
 
@@ -124,22 +92,41 @@ class LeibNet(Module):
         # correct order of lists
         self.ordered_nodes = self.ordered_nodes[::-1]
         self.flushable_arrays = self.flushable_arrays[::-1]
+        
+        # set scales for each node
+        info_buffer = outputs.copy()
+        for node in self.output_nodes:
+            node.set_scale(info_buffer[node.output_keys[0]][1])
+
+        # walk along input paths for each node to determine lowest common scale
+        for node in self.ordered_nodes:
+            if node not in self.input_nodes:
+                scales = []
+                ancestors = nx.ancestors(self.graph, node)
+                for ancestor in ancestors:
+                    try:
+                        scales.append(ancestor.least_common_scale)
+                        for elder in nx.ancestors(self.graph, ancestor):
+                            ancestors.remove(elder)
+                    except RuntimeError:
+                        scales.append(ancestor.scale)
+                node.set_least_common_scale(np.lcm.reduce(scales))
 
         # self.compute_minimal_shapes()
 
     def compute_minimal_shapes(self):
         # analyze graph to determine minimal input/output shapes
-        # first find minimal output shapes (1x1x1 at lowest resolution)
-        # NOTE: expects the output_keys to come from nodes that have realworld unit resolutions (i.e. not classifications)
-        least_common_resolutions = []
+        # first find minimal output shapes (1x1x1 at lowest scale)
+        # NOTE: expects the output_keys to come from nodes that have realworld unit scales (i.e. not classifications)
+        least_common_scales = []
         for output_key in self.output_keys:
-            least_common_resolutions.append(
+            least_common_scales.append(
                 self.graph.nodes[
                     self.output_to_node_id[output_key]
-                ]._least_common_resolution
+                ].least_common_scale
             )
         self.min_output_shapes = {
-            key: np.lcm.reduce(least_common_resolutions) for key in self.output_keys
+            key: np.lcm.reduce(least_common_scales) for key in self.output_keys
         }
         self.step_valid_shapes = self.min_output_shapes  # TODO: is this correct?
 
@@ -153,6 +140,14 @@ class LeibNet(Module):
         self.min_input_shape = {}
         for input_key in self.input_keys:
             self.min_input_shapes[input_key] = array_shapes[input_key]
+
+         """
+         Pseudo code:
+         1) set model outputs to size = 1
+         2) backpropagate through model to determine minimal input shapes
+            a) for each node, determine minimal input shape and output scale
+         3) for each node, determine minimal output shape (i.e. forwardpropagate)
+         """
 
     def is_valid_input_shape(self, input_key, input_shape):
         return (input_shape >= self.min_input_shape[input_key]).all() and (

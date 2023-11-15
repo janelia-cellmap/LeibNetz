@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Any, Iterable, Union
+from typing import Any, Iterable, Sequence, Tuple
 import numpy as np
 from torch.nn import Module
 
@@ -10,35 +10,77 @@ class Node(Module):
     output_keys: Iterable[str]
     _type: str
 
-    def __init__(self, output_keys, resolution=(1, 1, 1), identifier=None) -> None:
+    def __init__(self, input_keys, output_keys, identifier=None) -> None:
         super().__init__()
         if identifier is None:
             identifier = id(self)
         self.id = identifier
+        self.input_keys = input_keys
         self.output_keys = output_keys
         self._type = __name__.split(".")[-1]
-        self.resolution = np.array(resolution)
-        self.ndims = len(resolution)
-        self._least_common_resolution = None
+        self._scale = None
+        self._ndims = None
+        self._least_common_scale = None
+
+    def set_scale(self, scale):
+        self._scale = scale
+        self._ndims = len(scale)
+    
+    def set_least_common_scale(self, least_common_scale):
+        self._least_common_scale = least_common_scale
+
+    @property
+    def scale(self):
+        if self._scale is not None:
+            return self._scale
+        else:
+            raise RuntimeError("Scale not set. Make sure graph & node are initialized.")
+
+    @property
+    def ndims(self):
+        if self._ndims is not None:
+            return self._ndims
+        else:
+            raise RuntimeError("Ndims not set. Make sure graph & node are initialized.")
+
+    @property
+    def least_common_scale(self):
+        if self._least_common_scale is not None:
+            return self._least_common_scale
+        else:
+            raise RuntimeError(
+                "Least common scale not set. Make sure graph & node are initialized."
+            )
 
     @abstractmethod
     def forward(self, **inputs):
         raise NotImplementedError
 
-    @abstractmethod
-    def compute_minimal_shapes(self):
-        raise NotImplementedError
+    def get_input_from_output(
+        self, outputs: dict[str, Sequence[Tuple]]
+    ) -> dict[str, Sequence[Tuple]]:
+        inputs = {}
+        factor = np.lcm.reduce(
+            [self.least_common_scale] + [val[1] for val in outputs.values()]
+        )
+        output_shape = np.max([val[0] for val in outputs.values()])
+        output_shape = np.ceil(output_shape / factor) * factor
+        inputs = self.get_input_from_output_shape(output_shape)
+        return inputs
 
     @abstractmethod
-    def is_valid_input_shape(self, input_key, input_shape):
+    def get_input_from_output_shape(
+        self, output_shape: Tuple
+    ) -> dict[str, Sequence[Tuple]]:
         raise NotImplementedError
 
-    @abstractmethod
-    def get_input_from_output(self, output_shapes):
-        raise NotImplementedError
+    def get_output_from_input(
+        self, inputs: dict[str, Sequence[Tuple]]
+    ) -> dict[str, Sequence[Tuple]]:
+        TODO: implement this
 
     @abstractmethod
-    def get_output_from_input(self, input_shapes):
+    def get_output_from_input_shape(self, input_shape: Tuple)-> dict[str, Sequence[Tuple]]:
         raise NotImplementedError
 
     def check_input_shapes(self, inputs: dict):
@@ -47,3 +89,7 @@ class Node(Module):
         for input_key, val in inputs.items():
             shapes_valid &= self.is_valid_input_shape(input_key, val.shape)
         return shapes_valid
+
+    @abstractmethod
+    def is_valid_input_shape(self, input_key, input_shape):
+        raise NotImplementedError
