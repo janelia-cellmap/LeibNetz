@@ -1,8 +1,8 @@
 from typing import Iterable, Sequence, Tuple
 import numpy as np
 import torch
-from .resample_ops import Upsample, MaxDownsample
-from . import Node
+from architectures.torch.leibnetz.nodes.resample_ops import Upsample, MaxDownsample
+from architectures.torch.leibnetz.nodes import Node
 
 
 class ResampleNode(Node):
@@ -32,8 +32,11 @@ class ResampleNode(Node):
 
     @property
     def scale_factor(self):
-        if self._scale_factor is not Iterable:
-            self._scale_factor = (self._scale_factor,) * self.ndims
+        assert isinstance(
+            self._scale_factor, Iterable
+        ), f"Scale factor must have length equal the number of dimensions. But is {self._scale_factor}"
+        # if self._scale_factor is not Iterable:
+        #     self._scale_factor = (self._scale_factor,) * self.ndims
         if self._scale_factor is not np.ndarray:
             self._scale_factor = np.array(self._scale_factor)
         return self._scale_factor

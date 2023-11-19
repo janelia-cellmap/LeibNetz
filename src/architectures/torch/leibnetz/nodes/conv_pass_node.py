@@ -1,7 +1,8 @@
 import math
 import numpy as np
 import torch
-from . import Node, ConvPass
+from architectures.torch.leibnetz.nodes import Node
+from architectures.torch.leibnetz.nodes.node_ops import ConvPass
 
 
 # defines baseclass for all nodes in the network

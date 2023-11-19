@@ -3,7 +3,7 @@ import networkx as nx
 from torch.nn import Module
 import matplotlib.pyplot as plt
 import numpy as np
-from .nodes import Node
+from architectures.torch.leibnetz.nodes import Node
 
 import logging
 
@@ -11,12 +11,12 @@ logger = logging.getLogger(__name__)
 
 
 class LeibNet(Module):
-    def __init__(self, nodes):
+    def __init__(self, nodes, outputs: dict[str, Sequence[Tuple]], retain_buffer=False):
         super().__init__()
         self.nodes = nodes
         self.graph = nx.DiGraph()
-        # self.assemble()
-        self.retain_buffer = False
+        self.assemble(outputs)
+        self.retain_buffer = retain_buffer
 
     def assemble(self, outputs: dict[str, Sequence[Tuple]]):
         """
@@ -133,10 +133,8 @@ class LeibNet(Module):
         # Determine output shapes closest to requested output shapes,
         # and determine corresponding input shapes
         # self.compute_shapes()
-        input_shapes, output_shapes = self.compute_shapes(outputs)
+        _, _ = self.compute_shapes(outputs)
         _, _ = self.compute_minimal_shapes()
-
-        return input_shapes, output_shapes
 
     def recurse_scales(self, nodes, node_scales_todo, scale_buffer):
         if len(node_scales_todo) == 0 or len(nodes) == 0:
@@ -193,12 +191,12 @@ class LeibNet(Module):
         self.output_shapes = {key: shape_buffer[key] for key in self.output_keys}
 
         # Print input/output shapes
-        print("Input shapes:")
+        logger.info("Input shapes:")
         for key in self.input_keys:
-            print(f"{key}: {self.input_shapes[key]}")
-        print("Output shapes:")
+            logger.info(f"{key}: {self.input_shapes[key]}")
+        logger.info("Output shapes:")
         for key in self.output_keys:
-            print(f"{key}: {self.output_shapes[key]}")
+            logger.info(f"{key}: {self.output_shapes[key]}")
 
         return self.input_shapes, self.output_shapes
 
