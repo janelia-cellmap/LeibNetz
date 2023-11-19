@@ -17,6 +17,7 @@ class Node(Module):
         self.id = identifier
         self.input_keys = input_keys
         self.output_keys = output_keys
+        self.color = "#000000"
         self._type = __name__.split(".")[-1]
         self._scale = None
         self._ndims = None

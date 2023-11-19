@@ -23,6 +23,7 @@ class ConvResampleNode(torch.nn.Module):
         self.input_nc = input_nc
         if np.all(self.scale_factor == 1):
             self.model = ConvPass(self.input_nc, self.output_nc, self.kernel_sizes)
+            self.color = "#00FF00"
             self._type = "conv_pass"
         elif np.all(self.scale_factor <= 1):
             self.model = ConvDownsample(
@@ -31,6 +32,7 @@ class ConvResampleNode(torch.nn.Module):
                 self.kernel_sizes,
                 (1 / self.scale_factor).astype(int),
             )
+            self.color = "#00FFFF"
             self._type = "conv_downsample"
         elif np.all(self.scale_factor >= 1):
             self.model = Upsample(
@@ -39,6 +41,7 @@ class ConvResampleNode(torch.nn.Module):
                 input_nc=self.input_nc,
                 output_nc=self.output_nc,
             )
+            self.color = "#FFFF00"
             self._type = "conv_upsample"
         else:
             raise NotImplementedError(

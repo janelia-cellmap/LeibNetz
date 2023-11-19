@@ -15,12 +15,15 @@ class ResampleNode(Node):
 
         if np.all(self.scale_factor == 1):
             self.model = torch.nn.Identity()
+            self.color = "#000000"
             self._type = "skip"
         elif np.all(self.scale_factor <= 1):
             self.model = MaxDownsample((1 / self.scale_factor).astype(int))
+            self.color = "#0000FF"
             self._type = "max_downsample"
         elif np.all(self.scale_factor >= 1):
             self.model = Upsample(self.scale_factor.astype(int))
+            self.color = "#FF0000"
             self._type = "upsample"
         else:
             raise NotImplementedError(

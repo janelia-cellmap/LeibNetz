@@ -42,6 +42,7 @@ class ConvPassNode(Node):
             padding_mode=padding_mode,
             norm_layer=norm_layer,
         )
+        self.color = "#00FF00"
         self._convolution_crop = None
 
     def forward(self, **inputs):
