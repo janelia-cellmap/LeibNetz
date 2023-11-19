@@ -25,9 +25,11 @@ class Node(Module):
     def set_scale(self, scale):
         self._scale = scale
         self._ndims = len(scale)
-    
+
     def set_least_common_scale(self, least_common_scale):
         self._least_common_scale = least_common_scale
+        if self._ndims is None:
+            self._ndims = len(least_common_scale)
 
     @property
     def scale(self):
@@ -59,11 +61,9 @@ class Node(Module):
     def get_input_from_output(
         self, outputs: dict[str, Sequence[Tuple]]
     ) -> dict[str, Sequence[Tuple]]:
-        inputs = {}
-        factor = np.lcm.reduce(
-            [self.least_common_scale] + [val[1] for val in outputs.values()]
-        )
-        output_shape = np.max([val[0] for val in outputs.values()])
+        shapes, scales = zip(*outputs.values())
+        factor = np.lcm.reduce([self.least_common_scale] + list(scales))
+        output_shape = np.max(shapes, axis=0)
         output_shape = np.ceil(output_shape / factor) * factor
         inputs = self.get_input_from_output_shape(output_shape)
         return inputs
@@ -77,10 +77,17 @@ class Node(Module):
     def get_output_from_input(
         self, inputs: dict[str, Sequence[Tuple]]
     ) -> dict[str, Sequence[Tuple]]:
-        TODO: implement this
+        shapes, scales = zip(*inputs.values())
+        # factor = np.lcm.reduce([self.least_common_scale] + list(scales))
+        input_shape = np.min(shapes, axis=0)
+        # input_shape = np.floor(input_shape / factor) * factor
+        outputs = self.get_output_from_input_shape(input_shape)
+        return outputs
 
     @abstractmethod
-    def get_output_from_input_shape(self, input_shape: Tuple)-> dict[str, Sequence[Tuple]]:
+    def get_output_from_input_shape(
+        self, input_shape: Tuple
+    ) -> dict[str, Sequence[Tuple]]:
         raise NotImplementedError
 
     def check_input_shapes(self, inputs: dict):

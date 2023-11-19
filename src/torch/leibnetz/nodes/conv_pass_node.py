@@ -48,6 +48,12 @@ class ConvPassNode(Node):
         # implement any parsing of input/output buffers here
         # buffers are dictionaries
 
+        # crop if necessary
+        shapes = [inputs[key].shape for key in self.input_keys]
+        smallest_shape = np.min(shapes, axis=0)
+        for key in self.input_keys:
+            if inputs[key].shape != smallest_shape:
+                inputs[key] = self.crop(inputs[key], smallest_shape)
         # concatenate inputs to single tensor
         inputs = torch.cat([inputs[key] for key in self.input_keys], dim=1)
 

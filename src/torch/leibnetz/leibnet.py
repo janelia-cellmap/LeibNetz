@@ -19,6 +19,24 @@ class LeibNet(Module):
         self.retain_buffer = False
 
     def assemble(self, outputs: dict[str, Sequence[Tuple]]):
+        '''
+        Assembles the graph from the nodes,
+        sets internal variables,
+        and determines the minimal input/output shapes
+        
+        Parameters
+        ----------
+        outputs : dict[str, Sequence[Tuple]]
+            Dictionary of output keys and their corresponding shapes and scales
+            
+        Returns
+        -------
+        input_shapes : dict[str, Sequence[Tuple]]
+            Dictionary of input keys and their corresponding shapes and scales
+        output_shapes : dict[str, Sequence[Tuple]]
+            Dictionary of output keys and their corresponding shapes and scales
+        '''
+
         # verify that all nodes and edges are unique
         node_ids = []
         output_to_node_id = {}
@@ -93,12 +111,12 @@ class LeibNet(Module):
         self.ordered_nodes = self.ordered_nodes[::-1]
         self.flushable_arrays = self.flushable_arrays[::-1]
         
-        # set scales for each node
-        info_buffer = outputs.copy()
-        for node in self.output_nodes:
-            node.set_scale(info_buffer[node.output_keys[0]][1])
+        # set scales for each node (walking backwards from outputs)
+        scale_buffer = {key:val[1] for key, val in outputs.items()}
+        node_scales_todo = self.nodes.copy()
+        self.recurse_scales(self.output_nodes, node_scales_todo, scale_buffer)
 
-        # walk along input paths for each node to determine lowest common scale
+        # walk along input paths for each node to determine least common scale
         for node in self.ordered_nodes:
             if node not in self.input_nodes:
                 scales = []
@@ -112,9 +130,46 @@ class LeibNet(Module):
                         scales.append(ancestor.scale)
                 node.set_least_common_scale(np.lcm.reduce(scales))
 
+        # Determine output shapes closest to requested output shapes,
+        # and determine corresponding input shapes
         # self.compute_minimal_shapes()
+        input_shapes, output_shapes = self.compute_minimal_shapes()
+
+        return input_shapes, output_shapes
+
+    def recurse_scales(self, nodes, node_scales_todo, scale_buffer):
+        if len(node_scales_todo) == 0 or len(nodes) == 0:
+            return
+        for node in self.nodes:
+            key = False
+            for key in node.output_keys:
+                if key in scale_buffer:
+                    break
+                else:
+                    key = False
+            assert key, f"Output {key} not in scale buffer. Please specify all outputs."
+            scale = scale_buffer[key]
+            if hasattr(node, "set_scale"):                
+                node.set_scale(scale)
+                scale_buffer.update({key:scale for key in node.input_keys})
+            else:
+                if node._type == "skip":
+                    scale_buffer.update({key:scale for key in node.input_keys})
+                elif "downsample" in node._type:
+                    scale_buffer.update({key:scale/node.scale_factor for key in node.input_keys})
+                elif "upsample" in node._type:
+                    scale_buffer.update({key:scale*node.scale_factor for key in node.input_keys})
+                else:
+                    raise NotImplementedError(f"Scale not set for {node}.")
+                
+            node_scales_todo.remove(node)
+            next_nodes = list(self.graph.predecessors(node))
+            self.recurse_scales(next_nodes, node_scales_todo, scale_buffer)
+                
+
 
     def compute_minimal_shapes(self):
+        # TODO: INCOMPLETE
         # analyze graph to determine minimal input/output shapes
         # first find minimal output shapes (1x1x1 at lowest scale)
         # NOTE: expects the output_keys to come from nodes that have realworld unit scales (i.e. not classifications)
@@ -149,6 +204,16 @@ class LeibNet(Module):
          3) for each node, determine minimal output shape (i.e. forwardpropagate)
          """
 
+        # Print input/output shapes
+        print("Input shapes:")
+        for key in self.input_keys:
+            print(f"{key}: {self.min_input_shapes[key]}")
+        print("Output shapes:")
+        for key in self.output_keys:
+            print(f"{key}: {self.min_output_shapes[key]}")
+
+        return self.min_input_shapes, self.min_output_shapes
+    
     def is_valid_input_shape(self, input_key, input_shape):
         return (input_shape >= self.min_input_shape[input_key]).all() and (
             (input_shape - self.min_input_shape[input_key])
