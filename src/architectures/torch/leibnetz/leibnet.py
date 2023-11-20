@@ -21,6 +21,7 @@ class LeibNet(Module):
 
     def assemble(self, outputs: dict[str, Sequence[Tuple]]):
         """
+        NOTE: If your scales are non-integer realworld units, you need to treat the scale as integer factors instead.
         Assembles the graph from the nodes,
         sets internal variables,
         and determines the minimal input/output shapes
@@ -134,7 +135,7 @@ class LeibNet(Module):
                                 ancestors.remove(elder)
                     except RuntimeError:
                         scales.append(ancestor.scale)
-            scales = np.array(scales)
+            scales = np.ceil(scales).astype(int)
             scales = scales[scales.sum(axis=1) > 0]  # remove NaN scales
             node.set_least_common_scale(np.lcm.reduce(scales))
 
@@ -164,7 +165,7 @@ class LeibNet(Module):
             if "downsample" in node._type or "upsample" in node._type:
                 scale_buffer.update(
                     {
-                        key: (scale / node.scale_factor).astype(int)
+                        key: (scale * node.scale_factor).astype(int)
                         for key in node.input_keys
                     }
                 )

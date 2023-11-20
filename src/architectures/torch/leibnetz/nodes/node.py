@@ -69,13 +69,13 @@ class Node(Module):
         shapes = []
         scales = []
         for val in outputs.values():
-            if val is None or val[1] is None or any(np.array(val[1]) >= 0):
+            if val is None or val[1] is None or any(np.array(val[1]) <= 0):
                 continue
             shapes.append(val[0])
             scales.append(val[1])
-        shapes, scales = zip(*outputs.values())
+        # shapes, scales = zip(*outputs.values())
         factor = np.lcm.reduce(
-            [self.least_common_scale.astype(int)] + list(np.array(scales).astype(int))
+            [self.least_common_scale.astype(int)] + list(np.ceil(scales).astype(int))
         )
         assert np.all(factor > 0)
         output_shape = np.max(shapes, axis=0)
