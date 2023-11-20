@@ -14,11 +14,12 @@ def build_unet(
     nc_increase_factor=2,
 ):
     # define downsample nodes
+    downsample_factors = np.array(downsample_factors)
     input_key = "input"
     nodes = []
     c = 0
     for i, downsample_factor in enumerate(downsample_factors):
-        output_key = f"in_conv_pass_{c}"
+        output_key = f"in_conv_{c}"
         nodes.append(
             ConvPassNode(
                 [input_key],
@@ -31,19 +32,19 @@ def build_unet(
         )
         c += 1
         input_key = output_key
-        output_key = f"downsample_node_{i}"
+        output_key = f"downsample_{i}"
         nodes.append(
             ResampleNode(
                 [input_key],
                 [output_key],
-                downsample_factor,
+                1 / downsample_factor,
                 identifier=output_key,
             ),
         )
         input_key = output_key
 
     # define bottleneck node
-    output_key = "bottleneck_node"
+    output_key = "bottleneck"
     nodes.append(
         ConvPassNode(
             [input_key],
@@ -58,7 +59,7 @@ def build_unet(
 
     # define upsample nodes
     for i, downsample_factor in reversed(list(enumerate(downsample_factors))):
-        output_key = f"upsample_node_{i}"
+        output_key = f"upsample_{i}"
         nodes.append(
             ResampleNode(
                 [input_key],
@@ -69,10 +70,10 @@ def build_unet(
         )
         input_key = output_key
         c -= 1
-        output_key = f"out_conv_pass_{c}"
+        output_key = f"out_conv_{c}"
         nodes.append(
             ConvPassNode(
-                [input_key, f"in_conv_pass_{c}"],
+                [input_key, f"in_conv_{c}"],
                 [output_key],
                 base_nc * nc_increase_factor**i
                 + base_nc * nc_increase_factor ** (i + 1),
@@ -97,7 +98,7 @@ def build_unet(
 
     # define network
     network = LeibNet(
-        nodes, outputs={"output": [(np.ones(len(top_resolution)), top_resolution)]}
+        nodes, outputs={"output": [tuple(np.ones(len(top_resolution))), top_resolution]}
     )
 
     return network

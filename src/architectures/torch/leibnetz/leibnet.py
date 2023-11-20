@@ -14,6 +14,7 @@ class LeibNet(Module):
     def __init__(self, nodes, outputs: dict[str, Sequence[Tuple]], retain_buffer=False):
         super().__init__()
         self.nodes = nodes
+        self.nodes_dict = {node.id: node for node in nodes}
         self.graph = nx.DiGraph()
         self.assemble(outputs)
         self.retain_buffer = retain_buffer
@@ -61,10 +62,13 @@ class LeibNet(Module):
 
         # add edges to graph
         for node in self.nodes:
+            self.graph.nodes[node]["node_label"] = node.id
+            self.graph.nodes[node]["color"] = node.color
+            self.graph.nodes[node]["type"] = node._type
             for input_key in node.input_keys:
                 if input_key in output_to_node_id:
                     self.graph.add_edge(
-                        self.graph.nodes[output_to_node_id[input_key]], node
+                        self.nodes_dict[output_to_node_id[input_key]], node
                     )
         # check if graph is acyclic
         if not nx.is_directed_acyclic_graph(self.graph):
@@ -118,87 +122,103 @@ class LeibNet(Module):
 
         # walk along input paths for each node to determine least common scale
         for node in self.ordered_nodes:
+            self.graph.nodes[node]["scale"] = node.scale
+            scales = [node.scale]
             if node not in self.input_nodes:
-                scales = []
-                ancestors = nx.ancestors(self.graph, node)
+                ancestors = list(nx.ancestors(self.graph, node).copy())
                 for ancestor in ancestors:
                     try:
                         scales.append(ancestor.least_common_scale)
                         for elder in nx.ancestors(self.graph, ancestor):
-                            ancestors.remove(elder)
+                            if elder in ancestors:
+                                ancestors.remove(elder)
                     except RuntimeError:
                         scales.append(ancestor.scale)
-                node.set_least_common_scale(np.lcm.reduce(scales))
+            scales = np.array(scales)
+            scales = scales[scales.sum(axis=1) > 0]  # remove NaN scales
+            node.set_least_common_scale(np.lcm.reduce(scales))
 
         # Determine output shapes closest to requested output shapes,
         # and determine corresponding input shapes
-        # self.compute_shapes()
-        _, _ = self.compute_shapes(outputs)
-        _, _ = self.compute_minimal_shapes()
+        self.input_shapes, self.output_shapes = self.compute_shapes(outputs)
+        self.min_input_shapes, self.min_output_shapes = self.compute_minimal_shapes()
 
     def recurse_scales(self, nodes, node_scales_todo, scale_buffer):
         if len(node_scales_todo) == 0 or len(nodes) == 0:
             return
-        for node in self.nodes:
+        for node in nodes:
+            if node not in node_scales_todo:
+                continue
             key = False
             for key in node.output_keys:
                 if key in scale_buffer:
                     break
                 else:
                     key = False
-            assert key, f"Output {key} not in scale buffer. Please specify all outputs."
-            scale = scale_buffer[key]
+            assert (
+                key
+            ), f'Output "{key}" not in scale buffer. Please specify all outputs.'
+            scale = np.array(scale_buffer[key]).astype(int)
             if hasattr(node, "set_scale"):
                 node.set_scale(scale)
-                scale_buffer.update({key: scale for key in node.input_keys})
+            if "downsample" in node._type or "upsample" in node._type:
+                scale_buffer.update(
+                    {
+                        key: (scale / node.scale_factor).astype(int)
+                        for key in node.input_keys
+                    }
+                )
             else:
-                if node._type == "skip":
-                    scale_buffer.update({key: scale for key in node.input_keys})
-                elif "downsample" in node._type:
-                    scale_buffer.update(
-                        {key: scale / node.scale_factor for key in node.input_keys}
-                    )
-                elif "upsample" in node._type:
-                    scale_buffer.update(
-                        {key: scale * node.scale_factor for key in node.input_keys}
-                    )
-                else:
-                    raise NotImplementedError(f"Scale not set for {node}.")
+                scale_buffer.update({key: scale for key in node.input_keys})
 
             node_scales_todo.remove(node)
             next_nodes = list(self.graph.predecessors(node))
-            self.recurse_scales(next_nodes, node_scales_todo, scale_buffer)
+            if len(next_nodes) == 0:
+                continue
+            node_scales_todo, scale_buffer = self.recurse_scales(
+                next_nodes, node_scales_todo, scale_buffer
+            )
 
-    def compute_shapes(self, outputs: dict[str, Sequence[Tuple]]):
+        return node_scales_todo, scale_buffer
+
+    def compute_shapes(self, outputs: dict[str, Sequence[Tuple]], set=True):
         # walk backwards through graph to determine input shapes closest to requested output shapes
         shape_buffer = outputs.copy()
         for node in self.ordered_nodes[::-1]:
             shape_buffer.update(
-                node.get_input_from_output(shape_buffer[node.output_keys])
+                node.get_input_from_output(
+                    {k: shape_buffer.get(k, None) for k in node.output_keys}
+                )
             )
 
         # save input shapes
-        self.input_shapes = {key: shape_buffer[key] for key in self.input_keys}
+        input_shapes = {k: shape_buffer.get(k, None) for k in self.input_keys}
 
         # walk forwards through graph to determine output shapes based on input shapes
-        shape_buffer = self.input_shapes.copy()
+        shape_buffer = input_shapes.copy()
         for node in self.ordered_nodes:
             shape_buffer.update(
-                node.get_output_from_input(shape_buffer[node.input_keys])
+                node.get_output_from_input(
+                    {k: shape_buffer.get(k, None) for k in node.input_keys}
+                )
             )
 
         # save output shapes
-        self.output_shapes = {key: shape_buffer[key] for key in self.output_keys}
+        output_shapes = {k: shape_buffer.get(k, None) for k in self.output_keys}
 
         # Print input/output shapes
         logger.info("Input shapes:")
         for key in self.input_keys:
-            logger.info(f"{key}: {self.input_shapes[key]}")
+            logger.info(f"{key}: {input_shapes[key]}")
         logger.info("Output shapes:")
         for key in self.output_keys:
-            logger.info(f"{key}: {self.output_shapes[key]}")
+            logger.info(f"{key}: {output_shapes[key]}")
 
-        return self.input_shapes, self.output_shapes
+        if set:
+            self.input_shapes = input_shapes
+            self.output_shapes = output_shapes
+
+        return input_shapes, output_shapes
 
     def compute_minimal_shapes(self):
         # analyze graph to determine minimal input/output shapes
@@ -206,10 +226,11 @@ class LeibNet(Module):
         # NOTE: expects the output_keys to come from nodes that have realworld unit scales (i.e. not classifications)
         outputs = {}
         for key in self.output_keys:
-            node = self.output_to_node_id[key]
-            outputs[key] = (np.ones(node.ndims), node.scale)
+            node = self.nodes_dict[self.output_to_node_id[key]]
+            outputs[key] = (np.ones(node.ndims, dtype=int), node.scale)
 
-        return self.compute_shapes(outputs)
+        min_input_shapes, min_output_shapes = self.compute_shapes(outputs, set=False)
+        return min_input_shapes, min_output_shapes
 
     def is_valid_input_shape(self, input_key, input_shape):
         return (input_shape >= self.min_input_shape[input_key]).all() and (
@@ -242,7 +263,9 @@ class LeibNet(Module):
         for flushable_list, node in zip(self.flushable_arrays, self.ordered_nodes):
             # TODO: determine how to make inputs optional
             try:
-                self.buffer.update(node.forward(self.buffer[node.input_keys]))
+                self.buffer.update(
+                    node.forward({k: self.buffer.get(k, None) for k in node.input_keys})
+                )
             except KeyError:
                 logger.warning(f"Node {node} is missing inputs.")
 
@@ -259,15 +282,31 @@ class LeibNet(Module):
         # return outputs
         return self.buffer
 
-    def draw(self):
-        nodelist = list(self.graph.nodes)
-        labels = {node: node.id for node in nodelist}
-        colors = [node.color for node in nodelist]
+    def draw(self, type: str = "spiral", node_size: int = 1000, font_size: int = 8):
+        labels = {node: "\n".join(node.id.split("_")) for node in self.ordered_nodes}
+        colors = [node.color for node in self.ordered_nodes]
+        if type == "multipartite":
+            pos = nx.multipartite_layout(
+                self.graph, subset_key="scale", align="horizontal"
+            )
+        elif type == "spiral":
+            pos = nx.spiral_layout(self.graph, equidistant=True)
+        elif type == "kamada_kawai":
+            pos = nx.kamada_kawai_layout(self.graph)
+        elif type == "planar":
+            pos = nx.planar_layout(self.graph)
+        else:
+            pos = nx.planar_layout(self.graph)
+            pos = nx.kamada_kawai_layout(self.graph, pos=pos)
+
         nx.draw_networkx(
             self.graph,
-            with_labels=True,
+            pos=pos,
+            # with_labels=False,
             labels=labels,
             node_color=colors,
-            font_color="white",
+            # font_color="white",
+            font_size=font_size,
+            node_size=node_size,
+            # node_shape="s"
         )
-        plt.show()

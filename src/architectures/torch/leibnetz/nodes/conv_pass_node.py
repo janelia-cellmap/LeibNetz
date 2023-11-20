@@ -51,7 +51,9 @@ class ConvPassNode(Node):
         # buffers are dictionaries
 
         # crop if necessary
-        shapes = [inputs[key].shape for key in self.input_keys]
+        shapes = [
+            inputs[key].shape for key in self.input_keys if inputs[key] is not None
+        ]
         smallest_shape = np.min(shapes, axis=0)
         for key in self.input_keys:
             if inputs[key].shape != smallest_shape:

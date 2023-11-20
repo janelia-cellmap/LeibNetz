@@ -24,10 +24,14 @@ class Node(Module):
         self._least_common_scale = None
 
     def set_scale(self, scale):
+        scale = np.array(scale)
+        assert all(scale > 0)
         self._scale = scale
         self._ndims = len(scale)
 
     def set_least_common_scale(self, least_common_scale):
+        least_common_scale = np.array(least_common_scale)
+        assert all(least_common_scale > 0)
         self._least_common_scale = least_common_scale
         if self._ndims is None:
             self._ndims = len(least_common_scale)
@@ -62,8 +66,18 @@ class Node(Module):
     def get_input_from_output(
         self, outputs: dict[str, Sequence[Tuple]]
     ) -> dict[str, Sequence[Tuple]]:
+        shapes = []
+        scales = []
+        for val in outputs.values():
+            if val is None or val[1] is None or any(np.array(val[1]) >= 0):
+                continue
+            shapes.append(val[0])
+            scales.append(val[1])
         shapes, scales = zip(*outputs.values())
-        factor = np.lcm.reduce([self.least_common_scale] + list(scales))
+        factor = np.lcm.reduce(
+            [self.least_common_scale.astype(int)] + list(np.array(scales).astype(int))
+        )
+        assert np.all(factor > 0)
         output_shape = np.max(shapes, axis=0)
         output_shape = np.ceil(output_shape / factor) * factor
         inputs = self.get_input_from_output_shape(output_shape)
