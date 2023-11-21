@@ -184,7 +184,7 @@ class LeibNet(Module):
 
     def compute_shapes(self, outputs: dict[str, Sequence[Tuple]], set=True):
         # walk backwards through graph to determine input shapes closest to requested output shapes
-        shape_buffer = outputs.copy()
+        shape_buffer = outputs.copy()        
         for node in self.ordered_nodes[::-1]:
             shape_buffer.update(
                 node.get_input_from_output(
@@ -206,6 +206,7 @@ class LeibNet(Module):
 
         # save output shapes
         output_shapes = {k: shape_buffer.get(k, None) for k in self.output_keys}
+        input_shapes = {k: shape_buffer.get(k, None) for k in self.input_keys}
 
         # Print input/output shapes
         logger.info("Input shapes:")

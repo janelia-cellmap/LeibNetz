@@ -74,12 +74,17 @@ class Node(Module):
             shapes.append(val[0])
             scales.append(val[1])
         # shapes, scales = zip(*outputs.values())
-        factor = np.lcm.reduce(
-            [self.least_common_scale.astype(int)] + list(np.ceil(scales).astype(int))
-        )
-        assert np.all(factor > 0)
+        # factor = np.lcm.reduce(
+        #     [self.least_common_scale.astype(int)] + list(np.ceil(scales).astype(int))
+        # )
+        # assert np.all(factor > 0)
         output_shape = np.max(shapes, axis=0)
-        output_shape = np.ceil(output_shape / factor) * factor
+        # output_shape = np.ceil(output_shape / factor) * factor
+        output_shape = output_shape * self.scale # in world coordinates
+        output_shape = np.ceil(output_shape / self.least_common_scale) * self.least_common_scale # expanded to fit least common scale
+        output_shape = output_shape / self.scale # in voxel coordinates
+        assert (np.ceil(output_shape) == output_shape).all()
+        assert len(output_shape) == self.ndims, f"Input shape {output_shape} has wrong dimensionality. Expected to match spatial dimensions ({self.ndims})."
         inputs = self.get_input_from_output_shape(output_shape)
         return inputs
 
@@ -96,6 +101,7 @@ class Node(Module):
         # factor = np.lcm.reduce([self.least_common_scale] + list(scales))
         input_shape = np.min(shapes, axis=0)
         # input_shape = np.floor(input_shape / factor) * factor
+        assert len(input_shape) == self.ndims, f"Input shape {input_shape} has wrong dimensionality. Expected to match spatial dimensions ({self.ndims})."
         outputs = self.get_output_from_input_shape(input_shape)
         return outputs
 

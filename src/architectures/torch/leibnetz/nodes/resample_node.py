@@ -48,7 +48,10 @@ class ResampleNode(Node):
     def get_input_from_output_shape(self, output_shape) -> dict[str, Sequence]:
         output_shape = np.array(output_shape)
         return {
-            key: (np.ceil(output_shape / self.scale_factor), self.scale_factor)
+            key: (
+                np.ceil(output_shape / self.scale_factor),
+                self.scale / self.scale_factor,
+            )
             for key in self.input_keys
         }
 
@@ -57,7 +60,9 @@ class ResampleNode(Node):
         assert np.all(
             (input_shape * self.scale_factor) % 1 == 0
         ), f"Input shape {input_shape} is not valid for scale factor {self.scale_factor}."
+        output_shape = (input_shape * self.scale_factor)
         return {
-            key: ((input_shape * self.scale_factor).astype(int), self.scale_factor)
+            key: (output_shape.astype(int), self.scale)
+            # key: ((input_shape * self.scale_factor).astype(int), self.scale_factor)
             for key in self.output_keys
         }

@@ -87,13 +87,19 @@ class ConvPassNode(Node):
 
     def get_input_from_output_shape(self, output_shape):
         input_shape = output_shape + self.convolution_crop
-        return {key: (input_shape, (1,) * self.ndims) for key in self.input_keys}
+        input_shape = (input_shape * self.scale) # to world coordinates
+        input_shape = np.ceil(input_shape / self.least_common_scale) * self.least_common_scale # expanded to fit least common scale
+        input_shape = input_shape / self.scale # to voxel coordinates
+        assert (np.ceil(input_shape) == input_shape).all()
+        # return {key: (input_shape, (1,) * self.ndims) for key in self.input_keys}
+        return {key: (input_shape, self.scale) for key in self.input_keys}
 
     def get_output_from_input_shape(self, input_shape):
         output_shape = (
             input_shape - self.factor_crop(input_shape) - self.convolution_crop
         )
-        return {key: (output_shape, (1,) * self.ndims) for key in self.output_keys}
+        # return {key: (output_shape, (1,) * self.ndims) for key in self.output_keys}
+        return {key: (output_shape, self.scale) for key in self.output_keys}
 
     def factor_crop(self, input_shape):
         """Crop feature maps to ensure translation equivariance with stride of
@@ -115,11 +121,11 @@ class ConvPassNode(Node):
         # this gives us the target shape s'
         #
         # s' = n*k + c
-
+        spatial_shape = input_shape * self.scale
         ns = (
             int(math.floor(float(s - c) / f))
             for s, c, f in zip(
-                input_shape, self.convolution_crop, self.least_common_scale
+                spatial_shape, self.convolution_crop, self.least_common_scale
             )
         )
         target_spatial_shape = tuple(
@@ -127,7 +133,7 @@ class ConvPassNode(Node):
             for n, c, f in zip(ns, self.convolution_crop, self.least_common_scale)
         )
 
-        return input_shape - target_spatial_shape
+        return (spatial_shape - target_spatial_shape) / self.scale
 
     def crop_to_factor(self, x):
         shape = x.size()
