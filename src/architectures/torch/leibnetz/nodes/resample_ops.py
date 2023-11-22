@@ -71,8 +71,16 @@ class ConvDownsample(nn.Module):
         layers.append(self.activation)
         self.conv_pass = nn.Sequential(*layers)
 
-    def forward(self, x):
+    def _forward_single(self, x):
         return self.conv_pass(x)
+
+    def forward(self, x):
+        if isinstance(x, dict):
+            return [
+                self._forward_single(x[key]) for key in x.keys() if x[key] is not None
+            ]
+        else:
+            return self._forward_single(x)
 
 
 class MaxDownsample(nn.Module):
@@ -104,7 +112,7 @@ class MaxDownsample(nn.Module):
             stride=downsample_factor,
         )
 
-    def forward(self, x):
+    def _forward_single(self, x):
         if self.flexible:
             try:
                 return self.down(x)
@@ -113,6 +121,14 @@ class MaxDownsample(nn.Module):
         else:
             self.check_mismatch(x.size())
             return self.down(x)
+
+    def forward(self, x):
+        if isinstance(x, dict):
+            return [
+                self._forward_single(x[key]) for key in x.keys() if x[key] is not None
+            ]
+        else:
+            return self._forward_single(x)
 
     def check_mismatch(self, size):
         for d in range(1, self.dims + 1):
@@ -147,78 +163,13 @@ class Upsample(nn.Module):
         else:
             self.up = nn.Upsample(scale_factor=tuple(scale_factor), mode=mode)
 
-    def crop_to_factor(self, x, factor, kernel_sizes):
-        """Crop feature maps to ensure translation equivariance with stride of
-        upsampling factor. This should be done right after upsampling, before
-        application of the convolutions with the given kernel sizes.
+    def _forward_single(self, x):
+        return self.up(x)
 
-        The crop could be done after the convolutions, but it is more efficient
-        to do that before (feature maps will be smaller).
-        """
-
-        shape = x.size()
-        spatial_shape = shape[-self.dims :]
-
-        # the crop that will already be done due to the convolutions
-        convolution_crop = tuple(
-            sum(ks[d] - 1 for ks in kernel_sizes) for d in range(self.dims)
-        )
-
-        # we need (spatial_shape - convolution_crop) to be a multiple of
-        # factor, i.e.:
-        #
-        # (s - c) = n*k
-        #
-        # we want to find the largest n for which s' = n*k + c <= s
-        #
-        # n = floor((s - c)/k)
-        #
-        # this gives us the target shape s'
-        #
-        # s' = n*k + c
-
-        ns = (
-            int(math.floor(float(s - c) / f))
-            for s, c, f in zip(spatial_shape, convolution_crop, factor)
-        )
-        target_spatial_shape = tuple(
-            n * f + c for n, c, f in zip(ns, convolution_crop, factor)
-        )
-
-        if target_spatial_shape != spatial_shape:
-            assert all(
-                ((t > c) for t, c in zip(target_spatial_shape, convolution_crop))
-            ), (
-                "Feature map with shape %s is too small to ensure "
-                "translation equivariance with factor %s and following "
-                "convolutions %s" % (shape, factor, kernel_sizes)
-            )
-
-            return self.crop(x, target_spatial_shape)
-
-        return x
-
-    def crop(self, x, shape):
-        """Center-crop x to match spatial dimensions given by shape."""
-
-        x_target_size = x.size()[: -self.dims] + shape
-
-        offset = tuple((a - b) // 2 for a, b in zip(x.size(), x_target_size))
-
-        slices = tuple(slice(o, o + s) for o, s in zip(offset, x_target_size))
-
-        return x[slices]
-
-    def forward(self, f_left, g_out):
-        g_up = self.up(g_out)
-
-        if self.crop_factor is not None:
-            g_cropped = self.crop_to_factor(
-                g_up, self.crop_factor, self.next_conv_kernel_sizes
-            )
+    def forward(self, x):
+        if isinstance(x, dict):
+            return [
+                self._forward_single(x[key]) for key in x.keys() if x[key] is not None
+            ]
         else:
-            g_cropped = g_up
-
-        f_cropped = self.crop(f_left, g_cropped.size()[-self.dims :])
-
-        return torch.cat([f_cropped, g_cropped], dim=1)
+            return self._forward_single(x)

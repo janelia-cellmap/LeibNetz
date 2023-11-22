@@ -11,13 +11,14 @@ logger = logging.getLogger(__name__)
 
 
 class LeibNet(Module):
-    def __init__(self, nodes, outputs: dict[str, Sequence[Tuple]], retain_buffer=False):
+    def __init__(self, nodes, outputs: dict[str, Sequence[Tuple]], retain_buffer=True):
         super().__init__()
         self.nodes = nodes
         self.nodes_dict = {node.id: node for node in nodes}
         self.graph = nx.DiGraph()
         self.assemble(outputs)
         self.retain_buffer = retain_buffer
+        self.retain_buffer = True
 
     def assemble(self, outputs: dict[str, Sequence[Tuple]]):
         """
@@ -184,7 +185,7 @@ class LeibNet(Module):
 
     def compute_shapes(self, outputs: dict[str, Sequence[Tuple]], set=True):
         # walk backwards through graph to determine input shapes closest to requested output shapes
-        shape_buffer = outputs.copy()        
+        shape_buffer = outputs.copy()
         for node in self.ordered_nodes[::-1]:
             shape_buffer.update(
                 node.get_input_from_output(
@@ -248,7 +249,7 @@ class LeibNet(Module):
             shapes_valid &= self.is_valid_input_shape(input_key, val.shape)
         return shapes_valid
 
-    def forward(self, **inputs):
+    def forward(self, inputs):
         # function for forwarding data through the network
         # inputs is a dictionary of tensors
         # outputs is a dictionary of tensors
@@ -273,8 +274,14 @@ class LeibNet(Module):
 
             # clear unnecessary arrays from buffer
             if not self.retain_buffer:
+                raise NotImplementedError(
+                    "This has not been successfully implemented yet."
+                )
                 for key in flushable_list:
-                    del self.buffer[key]
+                    try:
+                        del self.buffer[key]
+                    except KeyError:
+                        pass
 
         # # collect outputs
         # outputs = {}

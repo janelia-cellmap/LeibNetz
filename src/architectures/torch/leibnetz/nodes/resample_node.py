@@ -41,15 +41,21 @@ class ResampleNode(Node):
             self._scale_factor = np.array(self._scale_factor)
         return self._scale_factor
 
-    def forward(self, **inputs):
-        outputs = self.model(**inputs)
+    def forward(self, inputs):
+        outputs = self.model(inputs)
         return {key: val for key, val in zip(self.output_keys, outputs)}
 
     def get_input_from_output_shape(self, output_shape) -> dict[str, Sequence]:
         output_shape = np.array(output_shape)
+        output_shape = output_shape * self.scale  # to world coordinates
+        input_shape = output_shape / self.scale_factor  # reverse resampling
+        input_shape = (
+            np.ceil(input_shape / self.least_common_scale) * self.least_common_scale
+        )  # expanded to fit least common scale
+        input_shape = input_shape / self.scale  # to voxel coordinates
         return {
             key: (
-                np.ceil(output_shape / self.scale_factor),
+                input_shape,
                 self.scale / self.scale_factor,
             )
             for key in self.input_keys
@@ -60,7 +66,7 @@ class ResampleNode(Node):
         assert np.all(
             (input_shape * self.scale_factor) % 1 == 0
         ), f"Input shape {input_shape} is not valid for scale factor {self.scale_factor}."
-        output_shape = (input_shape * self.scale_factor)
+        output_shape = input_shape * self.scale_factor
         return {
             key: (output_shape.astype(int), self.scale)
             # key: ((input_shape * self.scale_factor).astype(int), self.scale_factor)

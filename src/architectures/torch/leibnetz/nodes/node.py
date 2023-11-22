@@ -60,7 +60,7 @@ class Node(Module):
             )
 
     @abstractmethod
-    def forward(self, **inputs):
+    def forward(self, inputs):
         raise NotImplementedError
 
     def get_input_from_output(
@@ -80,11 +80,17 @@ class Node(Module):
         # assert np.all(factor > 0)
         output_shape = np.max(shapes, axis=0)
         # output_shape = np.ceil(output_shape / factor) * factor
-        output_shape = output_shape * self.scale # in world coordinates
-        output_shape = np.ceil(output_shape / self.least_common_scale) * self.least_common_scale # expanded to fit least common scale
-        output_shape = output_shape / self.scale # in voxel coordinates
-        assert (np.ceil(output_shape) == output_shape).all()
-        assert len(output_shape) == self.ndims, f"Input shape {output_shape} has wrong dimensionality. Expected to match spatial dimensions ({self.ndims})."
+        output_shape = output_shape * self.scale  # in world coordinates
+        output_shape = (
+            np.ceil(output_shape / self.least_common_scale) * self.least_common_scale
+        )  # expanded to fit least common scale
+        output_shape = output_shape / self.scale  # in voxel coordinates
+        assert (
+            np.ceil(output_shape) == output_shape
+        ).all(), f"Output shape {output_shape} is not valid at node ID {self.id}."
+        assert (
+            len(output_shape) == self.ndims
+        ), f"Input shape {output_shape} has wrong dimensionality. Expected to match spatial dimensions ({self.ndims})."
         inputs = self.get_input_from_output_shape(output_shape)
         return inputs
 
@@ -97,11 +103,22 @@ class Node(Module):
     def get_output_from_input(
         self, inputs: dict[str, Sequence[Tuple]]
     ) -> dict[str, Sequence[Tuple]]:
-        shapes, scales = zip(*inputs.values())
+        shapes = []
+        scales = []
+        for k, (sh, sc) in inputs.items():
+            assert (
+                sh % 1 == 0
+            ).all(), (
+                f"Non-integer input shape {sh} for input key {k} at node ID {self.id}."
+            )
+            shapes.append(sh)
+            scales.append(sc)
         # factor = np.lcm.reduce([self.least_common_scale] + list(scales))
         input_shape = np.min(shapes, axis=0)
         # input_shape = np.floor(input_shape / factor) * factor
-        assert len(input_shape) == self.ndims, f"Input shape {input_shape} has wrong dimensionality. Expected to match spatial dimensions ({self.ndims})."
+        assert (
+            len(input_shape) == self.ndims
+        ), f"Input shape {input_shape} has wrong dimensionality. Expected to match spatial dimensions ({self.ndims})."
         outputs = self.get_output_from_input_shape(input_shape)
         return outputs
 

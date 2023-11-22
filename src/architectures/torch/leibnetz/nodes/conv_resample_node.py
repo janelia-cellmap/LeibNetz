@@ -48,8 +48,8 @@ class ConvResampleNode(torch.nn.Module):
                 "Simultaneous up- and downsampling not implemented"
             )
 
-    def forward(self, **inputs):
-        outputs = self.model(**inputs)
+    def forward(self, inputs):
+        outputs = self.model(inputs)
         return {key: val for key, val in zip(self.output_keys, outputs)}
 
     def compute_minimal_shapes(self):

@@ -46,7 +46,7 @@ class ConvPassNode(Node):
         self.color = "#00FF00"
         self._convolution_crop = None
 
-    def forward(self, **inputs):
+    def forward(self, inputs):
         # implement any parsing of input/output buffers here
         # buffers are dictionaries
 
@@ -54,16 +54,19 @@ class ConvPassNode(Node):
         shapes = [
             inputs[key].shape for key in self.input_keys if inputs[key] is not None
         ]
+        assert (
+            len(shapes) > 0
+        ), f"No inputs for node {self.id}, with expected inputs {self.input_keys}"
         smallest_shape = np.min(shapes, axis=0)
         for key in self.input_keys:
-            if inputs[key].shape != smallest_shape:
+            if (inputs[key].shape != smallest_shape).all():
                 inputs[key] = self.crop(inputs[key], smallest_shape)
         # concatenate inputs to single tensor
-        inputs = torch.cat([inputs[key] for key in self.input_keys], dim=1)
+        inputs_tensor = torch.cat([inputs[key] for key in self.input_keys], dim=1)
 
-        # crop inputs to ensure translation equivariance
-        inputs = self.crop_to_factor(inputs)
-        outputs = self.model(inputs)
+        # crop inputs_tensor to ensure translation equivariance
+        inputs_tensor = self.crop_to_factor(inputs_tensor)
+        outputs = self.model(inputs_tensor)
 
         # split outputs into separate tensors
         if self.output_key_channels is not None:
@@ -82,14 +85,19 @@ class ConvPassNode(Node):
                     continue
                 if hasattr(module, "kernel_size"):
                     lost_voxels += np.array(module.kernel_size) - 1
+            assert (lost_voxels >= 0).all() & (
+                lost_voxels % 1 == 0
+            ).all(), f"Non-integer lost voxels {lost_voxels} at node {self.id}"
             self._convolution_crop = lost_voxels
         return self._convolution_crop
 
     def get_input_from_output_shape(self, output_shape):
         input_shape = output_shape + self.convolution_crop
-        input_shape = (input_shape * self.scale) # to world coordinates
-        input_shape = np.ceil(input_shape / self.least_common_scale) * self.least_common_scale # expanded to fit least common scale
-        input_shape = input_shape / self.scale # to voxel coordinates
+        input_shape = input_shape * self.scale  # to world coordinates
+        input_shape = (
+            np.ceil(input_shape / self.least_common_scale) * self.least_common_scale
+        )  # expanded to fit least common scale
+        input_shape = input_shape / self.scale  # to voxel coordinates
         assert (np.ceil(input_shape) == input_shape).all()
         # return {key: (input_shape, (1,) * self.ndims) for key in self.input_keys}
         return {key: (input_shape, self.scale) for key in self.input_keys}
@@ -125,30 +133,35 @@ class ConvPassNode(Node):
         ns = (
             int(math.floor(float(s - c) / f))
             for s, c, f in zip(
-                spatial_shape, self.convolution_crop, self.least_common_scale
+                spatial_shape,
+                self.convolution_crop * self.scale,
+                self.least_common_scale,
             )
         )
         target_spatial_shape = tuple(
             n * f + c
-            for n, c, f in zip(ns, self.convolution_crop, self.least_common_scale)
+            for n, c, f in zip(
+                ns, self.convolution_crop * self.scale, self.least_common_scale
+            )
         )
 
         return (spatial_shape - target_spatial_shape) / self.scale
 
     def crop_to_factor(self, x):
         shape = x.size()
-        spatial_shape = shape[-self.ndims :]
-        target_spatial_shape = spatial_shape - self.factor_crop(spatial_shape)
-        if target_spatial_shape != spatial_shape:
+        shape = shape[-self.ndims :]
+        target_shape = shape - self.factor_crop(shape)
+        if (target_shape != shape).all():
             assert all(
-                ((t > c) for t, c in zip(target_spatial_shape, self.convolution_crop))
+                ((t > c) for t, c in zip(target_shape, self.convolution_crop))
             ), (
                 "Feature map with shape %s is too small to ensure "
                 "translation equivariance with self.least_common_scale %s and following "
-                "convolutions %s" % (shape, self.least_common_scale, self.kernel_sizes)
+                "convolutions %s"
+                % (x.size(), self.least_common_scale, self.kernel_sizes)
             )
 
-            return self.crop(x, target_spatial_shape)
+            return self.crop(x, target_shape)
 
         return x
 
