@@ -151,7 +151,7 @@ class Upsample(nn.Module):
     def __init__(
         self,
         scale_factor,
-        mode=None,
+        mode="nearest",
         input_nc=None,
         output_nc=None,
     ):
