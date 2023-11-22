@@ -270,7 +270,10 @@ class LeibNet(Module):
                     node.forward({k: self.buffer.get(k, None) for k in node.input_keys})
                 )
             except KeyError:
-                logger.warning(f"Node {node} is missing inputs.")
+                logger.warning(f"Node ID {node.id} is missing inputs.")
+            except Exception as e:
+                logger.error(f"Node ID {node.id} failed with error: {e}")
+                raise e
 
             # clear unnecessary arrays from buffer
             if not self.retain_buffer:

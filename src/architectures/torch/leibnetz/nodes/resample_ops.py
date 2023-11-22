@@ -3,6 +3,10 @@ from torch import nn
 import torch
 from funlib.learn.torch.models.conv4d import Conv4d
 
+from logging import getLogger
+
+logger = getLogger(__name__)
+
 
 class ConvDownsample(nn.Module):
     def __init__(
@@ -108,16 +112,15 @@ class MaxDownsample(nn.Module):
         }[self.dims]
 
         self.down = pool(
-            downsample_factor,
-            stride=downsample_factor,
+            tuple(downsample_factor),
         )
 
     def _forward_single(self, x):
         if self.flexible:
             try:
                 return self.down(x)
-            except:
-                self.check_mismatch(x.size())
+            except Exception as e:
+                self.check_mismatch(x.size(), e)
         else:
             self.check_mismatch(x.size())
             return self.down(x)
@@ -130,7 +133,7 @@ class MaxDownsample(nn.Module):
         else:
             return self._forward_single(x)
 
-    def check_mismatch(self, size):
+    def check_mismatch(self, size, e: Exception | None = None):
         for d in range(1, self.dims + 1):
             if size[-d] % self.downsample_factor[-d] != 0:
                 raise RuntimeError(
@@ -138,7 +141,10 @@ class MaxDownsample(nn.Module):
                     "in spatial dimension %d"
                     % (size, self.downsample_factor, self.dims - d)
                 )
-        return
+        if e is not None:
+            logger.error(f"failed MaxDownsample with array size {size}")
+            raise e
+        raise RuntimeError("Unknown error during downsampling")
 
 
 class Upsample(nn.Module):

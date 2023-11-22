@@ -52,16 +52,22 @@ class ConvPassNode(Node):
 
         # crop if necessary
         shapes = [
-            inputs[key].shape for key in self.input_keys if inputs[key] is not None
+            inputs[key].shape[-self.ndims :]
+            for key in self.input_keys
+            if inputs[key] is not None
         ]
         assert (
             len(shapes) > 0
         ), f"No inputs for node {self.id}, with expected inputs {self.input_keys}"
         smallest_shape = np.min(shapes, axis=0)
+        assert len(smallest_shape) == self.ndims, (
+            f"Input shapes {shapes} have wrong dimensionality for node {self.id}, "
+            f"with expected inputs {self.input_keys} of dimensionality {self.ndims}"
+        )
         for key in self.input_keys:
-            if (inputs[key].shape != smallest_shape).all():
+            if np.all(inputs[key].shape[-self.ndims :] != smallest_shape):
                 inputs[key] = self.crop(inputs[key], smallest_shape)
-        # concatenate inputs to single tensor
+        # concatenate inputs to single tensor in the channel dimension
         inputs_tensor = torch.cat([inputs[key] for key in self.input_keys], dim=1)
 
         # crop inputs_tensor to ensure translation equivariance
@@ -73,6 +79,8 @@ class ConvPassNode(Node):
             outputs = torch.split(outputs, self.output_key_channels, dim=1)
         elif len(self.output_keys) > 1:
             outputs = torch.split(outputs, len(self.output_keys), dim=1)
+        else:
+            outputs = [outputs]
         return {key: val for key, val in zip(self.output_keys, outputs)}
 
     # the crop that will already be done due to the convolutions
@@ -129,7 +137,7 @@ class ConvPassNode(Node):
         # this gives us the target shape s'
         #
         # s' = n*k + c
-        spatial_shape = input_shape * self.scale
+        spatial_shape = input_shape[-self.ndims :] * self.scale
         ns = (
             int(math.floor(float(s - c) / f))
             for s, c, f in zip(
@@ -168,7 +176,7 @@ class ConvPassNode(Node):
     def crop(self, x, shape):
         """Center-crop x to match spatial dimensions given by shape."""
 
-        x_target_size = x.size()[: -self.ndims] + shape
+        x_target_size = x.size()[: -self.ndims] + tuple(shape)
 
         offset = tuple((a - b) // 2 for a, b in zip(x.size(), x_target_size))
 
