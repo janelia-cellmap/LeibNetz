@@ -49,8 +49,8 @@ def build_unet(
         ConvPassNode(
             [input_key],
             [output_key],
-            base_nc * nc_increase_factor**i,
-            base_nc * nc_increase_factor**i,
+            base_nc * nc_increase_factor ** (i),
+            base_nc * nc_increase_factor ** (i + 1),
             kernel_sizes,
             identifier=output_key,
         )
