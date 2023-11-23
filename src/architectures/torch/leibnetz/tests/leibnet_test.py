@@ -6,6 +6,7 @@ from architectures.torch.leibnetz.nodes import ResampleNode, ConvPassNode
 import numpy as np
 import torch
 
+
 def build_unet(
     top_resolution=(8, 8, 8),
     downsample_factors=[(2, 2, 2), (2, 2, 2)],
@@ -15,6 +16,12 @@ def build_unet(
     base_nc=12,
     nc_increase_factor=2,
 ):
+    from importlib import reload
+    import architectures.torch.leibnetz.unet_constructor
+
+    reload(architectures.torch.leibnetz.unet_constructor)
+    return architectures.torch.leibnetz.unet_constructor.build_unet()
+    assert False, "Fix unet constructor in test_leibnet.py"
     # define downsample nodes
     downsample_factors = np.array(downsample_factors)
     input_key = "input"
@@ -107,26 +114,36 @@ def build_unet(
 
 
 # %%
-
-def test_leibnet_cuda():
+def test_leibnet(device="cpu"):
     unet = build_unet()
-    unet.to("cuda")
+    unet.to(device)
 
     inputs = {}
-    for k, v in unet.input_shape.items():
-        inputs[k] = torch.rand(v).to("cuda")
+    for k, v in unet.input_shapes.items():
+        inputs[k] = torch.rand(
+            (
+                1,
+                1,
+            )
+            + tuple(v[0].astype(int))
+        ).to(device)
 
     outputs = unet(inputs)
-    assert outputs[key].shape == unet.output_shape[key] for key in unet.output_keys if outputs[key] is not None
+    assert np.all(
+        [
+            outputs[key].shape == unet.output_shapes[key]
+            for key in unet.output_keys
+            if outputs[key] is not None
+        ]
+    )
+
+
+def test_leibnet_cuda():
+    test_leibnet("cuda")
 
 
 def test_leibnet_cpu():
-    unet = build_unet()
-    unet.to("cpu")
+    test_leibnet("cpu")
 
-    inputs = {}
-    for k, v in unet.input_shape.items():
-        inputs[k] = torch.rand(v).to("cpu")
 
-    outputs = unet(inputs)
-    assert outputs[key].shape == unet.output_shape[key] for key in unet.output_keys if outputs[key] is not None
+# %%
