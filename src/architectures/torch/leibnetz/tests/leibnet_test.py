@@ -129,13 +129,8 @@ def test_leibnet(device="cpu"):
         ).to(device)
 
     outputs = unet(inputs)
-    assert np.all(
-        [
-            outputs[key].shape == unet.output_shapes[key]
-            for key in unet.output_keys
-            if outputs[key] is not None
-        ]
-    )
+    for k, v in outputs.items():
+        assert np.all([v.shape[-unet.ndims :] == unet.output_shapes[k][0]])
 
 
 def test_leibnet_cuda():

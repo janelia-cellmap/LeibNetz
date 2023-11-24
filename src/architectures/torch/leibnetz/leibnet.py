@@ -1,5 +1,6 @@
-from typing import Sequence, Tuple
+from typing import Sequence, Tuple, Union
 import networkx as nx
+from torch import device
 from torch.nn import Module
 import matplotlib.pyplot as plt
 import numpy as np
@@ -205,6 +206,9 @@ class LeibNet(Module):
                 )
             )
 
+        # set dimensions
+        self.ndims = len(shape_buffer[self.output_keys[0]][0])
+
         # save output shapes
         output_shapes = {k: shape_buffer.get(k, None) for k in self.output_keys}
         input_shapes = {k: shape_buffer.get(k, None) for k in self.input_keys}
@@ -249,6 +253,12 @@ class LeibNet(Module):
             shapes_valid &= self.is_valid_input_shape(input_key, val.shape)
         return shapes_valid
 
+    def to(self, device: device):
+        # function for moving network to device
+        for node in self.nodes:
+            node.to(device)
+        return self
+
     def forward(self, inputs):
         # function for forwarding data through the network
         # inputs is a dictionary of tensors
@@ -286,13 +296,9 @@ class LeibNet(Module):
                     except KeyError:
                         pass
 
-        # # collect outputs
-        # outputs = {}
-        # for output_key in self.output_keys:
-        #     outputs.update(self.buffer[output_key])
-
-        # return outputs
-        return self.buffer
+        # collect outputs
+        return {key: self.buffer[key] for key in self.output_keys}
+        # return self.buffer
 
     def draw(self, type: str = "spiral", node_size: int = 1000, font_size: int = 8):
         labels = {node: "\n".join(node.id.split("_")) for node in self.ordered_nodes}

@@ -169,11 +169,11 @@ class ConvPassNode(Node):
                 % (x.size(), self.least_common_scale, self.kernel_sizes)
             )
 
-            return self.crop(x, target_shape)
+            return self.crop(x, target_shape.astype(int))
 
         return x
 
-    def crop(self, x, shape):
+    def crop(self, x: torch.Tensor, shape):
         """Center-crop x to match spatial dimensions given by shape."""
 
         x_target_size = x.size()[: -self.ndims] + tuple(shape)
