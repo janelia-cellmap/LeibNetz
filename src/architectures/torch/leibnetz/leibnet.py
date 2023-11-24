@@ -259,6 +259,14 @@ class LeibNet(Module):
             node.to(device)
         return self
 
+    def modules(self):
+        # function for returning all modules in network
+        return [modules for node in self.nodes for modules in node.modules()]
+
+    def parameters(self):
+        # function for returning all parameters in network
+        return [param for node in self.nodes for param in node.parameters()]
+
     def forward(self, inputs):
         # function for forwarding data through the network
         # inputs is a dictionary of tensors
