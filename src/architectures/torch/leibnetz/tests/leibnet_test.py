@@ -128,9 +128,22 @@ def test_leibnet(device="cpu"):
             + tuple(v[0].astype(int))
         ).to(device)
 
+    # test forward pass
     outputs = unet(inputs)
     for k, v in outputs.items():
         assert np.all([v.shape[-unet.ndims :] == unet.output_shapes[k][0]])
+
+    # test backward pass
+    loss = torch.sum(torch.stack([torch.sum(v) for v in outputs.values()]))
+    loss.backward()
+
+    # test optimization
+    optimizer = torch.optim.Adam(unet.parameters(), lr=1e-3)
+    optimizer.zero_grad()
+    outputs = unet(inputs)
+    loss = torch.sum(torch.stack([torch.sum(v) for v in outputs.values()]))
+    loss.backward()
+    optimizer.step()
 
 
 def test_leibnet_cuda():
