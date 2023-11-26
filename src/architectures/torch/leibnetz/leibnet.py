@@ -1,6 +1,7 @@
-from typing import Sequence, Tuple, Union
+from typing import Optional, Sequence, Tuple, Union
 import networkx as nx
 from torch import device
+import torch
 from torch.nn import Module
 import matplotlib.pyplot as plt
 import numpy as np
@@ -20,6 +21,10 @@ class LeibNet(Module):
         self.assemble(outputs)
         self.retain_buffer = retain_buffer
         self.retain_buffer = True
+        if torch.cuda.is_available():
+            self.cuda()
+        else:
+            self.cpu()
 
     def assemble(self, outputs: dict[str, Sequence[Tuple]]):
         """
@@ -240,8 +245,9 @@ class LeibNet(Module):
         return min_input_shapes, min_output_shapes
 
     def is_valid_input_shape(self, input_key, input_shape):
-        return (input_shape >= self.min_input_shape[input_key]).all() and (
-            (input_shape - self.min_input_shape[input_key])
+        raise NotImplementedError("This has not been fully implemented yet.")
+        return (input_shape >= self.min_input_shapes[input_key]).all() and (
+            (input_shape - self.min_input_shapes[input_key])
             % self.step_valid_shapes[input_key]
             == 0
         ).all()
@@ -253,11 +259,52 @@ class LeibNet(Module):
             shapes_valid &= self.is_valid_input_shape(input_key, val.shape)
         return shapes_valid
 
+    def get_example_inputs(self, device: device = None):
+        # function for generating example inputs
+        if device is None:
+            device = self.device
+        inputs = {}
+        for k, v in self.input_shapes.items():
+            inputs[k] = torch.rand(
+                (
+                    1,
+                    1,
+                )
+                + tuple(v[0].astype(int))
+            ).to(device)
+        return inputs
+
+    # TODO: Add specification for sending arrays to different devices during forward pass
+
+    def train(self, mode: bool = True):
+        # function for setting network to train mode
+        for node in self.nodes:
+            node.train(mode)
+
+    def eval(self):
+        # function for setting network to eval mode
+        for node in self.nodes:
+            node.eval()
+
     def to(self, device: device):
         # function for moving network to device
+        self.device = device
         for node in self.nodes:
             node.to(device)
-        return self
+
+    def cuda(self, device: int | device | None = None):
+        # function for moving network to cuda
+        if device is None:
+            device = torch.cuda.current_device()
+        elif isinstance(device, int):
+            device = torch.device(f"cuda:{device}")
+        self.device = device
+        self.to(device)
+
+    def cpu(self):
+        # function for moving network to cpu
+        self.device = torch.device("cpu")
+        self.to(self.device)
 
     def modules(self):
         # function for returning all modules in network

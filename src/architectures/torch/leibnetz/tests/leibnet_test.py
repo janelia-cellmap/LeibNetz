@@ -1,10 +1,10 @@
 # %%
 # Unit tests for the LeibNet architecture using the U-Net constructor
 
+import torch
 from architectures.torch.leibnetz import LeibNet
 from architectures.torch.leibnetz.nodes import ResampleNode, ConvPassNode
 import numpy as np
-import torch
 
 
 def build_unet(
@@ -16,12 +16,6 @@ def build_unet(
     base_nc=12,
     nc_increase_factor=2,
 ):
-    from importlib import reload
-    import architectures.torch.leibnetz.unet_constructor
-
-    reload(architectures.torch.leibnetz.unet_constructor)
-    return architectures.torch.leibnetz.unet_constructor.build_unet()
-    assert False, "Fix unet constructor in test_leibnet.py"
     # define downsample nodes
     downsample_factors = np.array(downsample_factors)
     input_key = "input"
@@ -58,8 +52,8 @@ def build_unet(
         ConvPassNode(
             [input_key],
             [output_key],
-            base_nc * nc_increase_factor**i,
-            base_nc * nc_increase_factor**i,
+            base_nc * nc_increase_factor ** (i),
+            base_nc * nc_increase_factor ** (i + 1),
             kernel_sizes,
             identifier=output_key,
         )
@@ -153,5 +147,10 @@ def test_leibnet_cuda():
 def test_leibnet_cpu():
     test_leibnet("cpu")
 
+
+# %%
+if __name__ == "__main__":
+    test_leibnet_cpu()
+    test_leibnet_cuda()
 
 # %%
