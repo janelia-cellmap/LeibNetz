@@ -405,6 +405,9 @@ class LeibNet(Module):
         return outstring
 
     def draw(self, type: str = "spiral", node_size: int = 1000, font_size: int = 8):
+        DeprecationWarning(
+            "This function is deprecated. See LeibNet.to_mermaid()."
+        )  # noqa
         labels = {node: "\n".join(node.id.split("_")) for node in self.ordered_nodes}
         colors = [node.color for node in self.ordered_nodes]
         if type == "multipartite":
