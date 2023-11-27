@@ -232,6 +232,7 @@ class LeibNet(Module):
         if set:
             self.input_shapes = input_shapes
             self.output_shapes = output_shapes
+            self.array_shapes = shape_buffer
 
         return input_shapes, output_shapes
 
@@ -373,21 +374,45 @@ class LeibNet(Module):
                 out_sep = "-->"
             return in_sep, out_sep
 
+        def shapes(_type):
+            if "upsample" in _type:
+                in_shape = "[/"
+                out_shape = "\\]"
+            elif "downsample" in _type:
+                in_shape = "[\\"
+                out_shape = "/]"
+            elif "attention" in _type:
+                in_shape = "{{"
+                out_shape = "}}"
+            else:
+                in_shape = "(["
+                out_shape = "])"
+            return in_shape, out_shape
+
         if vertical:
             outstring = "graph TD\n"
         else:
             outstring = "graph LR\n"
         for node in self.nodes:
-            outstring += f"\tnode-{node.id}(({node.id}))\n"
+            s, e = shapes(node._type)
+            outstring += f"\tnode-{node.id}{s}{node.id}{e}\n"
         if separate_arrays:
             for key in self.array_keys:
                 outstring += f"\t{key}[{key}]\n"
             for node in self.nodes:
                 in_sep, out_sep = seps(node._type)
                 for input_key in node.input_keys:
-                    outstring += f"\t{input_key}{in_sep}node-{node.id}\n"
+                    scales = [f"{s}nm" for s in self.array_shapes[input_key][1]]
+                    scale_str = "x".join(scales)
+                    outstring += f"\tsubgraph {scale_str}\n"
+                    outstring += f"\t\t{input_key}{in_sep}node-{node.id}\n"
+                    outstring += "\tend\n"
                 for output_key in node.output_keys:
-                    outstring += f"\tnode-{node.id}{out_sep}{output_key}\n"
+                    scales = [f"{s}nm" for s in self.array_shapes[output_key][1]]
+                    scale_str = "x".join(scales)
+                    outstring += f"\tsubgraph {scale_str}\n"
+                    outstring += f"\t\tnode-{node.id}{out_sep}{output_key}\n"
+                    outstring += "\tend\n"
         else:
             for node in self.nodes:
                 for input_key in node.input_keys:
@@ -396,10 +421,15 @@ class LeibNet(Module):
                         in_sep, out_sep = seps(
                             self.nodes_dict[self.output_to_node_id[input_key]]._type
                         )
+                        # outstring += f"\tsubgraph {self.nodes_dict[in_name].scale}\n"
                     except KeyError:
                         in_name = input_key
                         out_sep = "-->"
-                    outstring += f"\t{in_name}{out_sep}node-{node.id}\n"
+                    scales = [f"{s}nm" for s in self.array_shapes[input_key][1]]
+                    scale_str = "x".join(scales)
+                    outstring += f"\tsubgraph {scale_str}\n"
+                    outstring += f"\t\t{in_name}{out_sep}node-{node.id}\n"
+                    outstring += "\tend\n"
 
         print(outstring)
         return outstring

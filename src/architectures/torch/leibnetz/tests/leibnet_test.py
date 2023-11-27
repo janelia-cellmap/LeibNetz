@@ -16,6 +16,17 @@ def build_unet(
     base_nc=12,
     nc_increase_factor=2,
 ):
+    # from architectures.torch.leibnetz.unet_constructor import build_unet
+
+    # return build_unet(
+    #     top_resolution,
+    #     downsample_factors,
+    #     kernel_sizes,
+    #     input_nc,
+    #     output_nc,
+    #     base_nc,
+    #     nc_increase_factor,
+    # )
     # define downsample nodes
     downsample_factors = np.array(downsample_factors)
     input_key = "input"
@@ -108,16 +119,17 @@ def build_unet(
 
 
 # %%
-def test_leibnet(device="cpu"):
-    unet = build_unet()
+def test_leibnet(device="cpu", **unet_kwargs):
+    unet = build_unet(**unet_kwargs)
     unet.to(device)
+    input_nc = unet_kwargs.get("input_nc", 1)
 
     inputs = {}
     for k, v in unet.input_shapes.items():
         inputs[k] = torch.rand(
             (
                 1,
-                1,
+                input_nc,
             )
             + tuple(v[0].astype(int))
         ).to(device)
@@ -142,10 +154,24 @@ def test_leibnet(device="cpu"):
 
 def test_leibnet_cuda():
     test_leibnet("cuda")
+    test_leibnet(
+        "cuda",
+        downsample_factors=[(3, 3, 3), (2, 2, 2), (2, 2, 2)],
+        kernel_sizes=[(5, 5, 5), (3, 3, 3)],
+        input_nc=2,
+        output_nc=1,
+    )
 
 
 def test_leibnet_cpu():
     test_leibnet("cpu")
+    test_leibnet(
+        "cpu",
+        downsample_factors=[(3, 3, 3), (2, 2, 2), (2, 2, 2)],
+        kernel_sizes=[(5, 5, 5), (3, 3, 3)],
+        input_nc=2,
+        output_nc=1,
+    )
 
 
 # %%
