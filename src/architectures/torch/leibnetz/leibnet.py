@@ -355,6 +355,30 @@ class LeibNet(Module):
         return {key: self.buffer[key] for key in self.output_keys}
         # return self.buffer
 
+    def to_mermaid(self, vertical: bool = False):
+        # function for converting network to mermaid graph
+        # NOTE: mermaid graphs can be rendered at https://mermaid-js.github.io/mermaid-live-editor/
+        if vertical:
+            outstring = "graph TD\n"
+        else:
+            outstring = "graph LR\n"
+        for node in self.nodes:
+            outstring += f"\t{node.id}({node.id})\n"
+        for node in self.nodes:
+            # for input_key in node.input_keys:
+            #     outstring += f"\t{self.output_to_node_id[input_key]}-->{node.id}\n"
+            for key in node.input_keys:
+                if "downsample" in node._type:
+                    # outstring += f"\t{node.id}-.->{key}\n"
+                    outstring += f"\t{key}-.->{node.id}\n"
+                elif "upsample" in node._type:
+                    # outstring += f"\t{node.id}==>{key}\n"
+                    outstring += f"\t{key}==>{node.id}\n"
+                else:
+                    # outstring += f"\t{node.id}-->{key}\n"
+                    outstring += f"\t{key}-->{node.id}\n"
+        return outstring
+
     def draw(self, type: str = "spiral", node_size: int = 1000, font_size: int = 8):
         labels = {node: "\n".join(node.id.split("_")) for node in self.ordered_nodes}
         colors = [node.color for node in self.ordered_nodes]
