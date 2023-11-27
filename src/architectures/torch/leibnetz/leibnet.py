@@ -109,9 +109,12 @@ class LeibNet(Module):
         self.flushable_arrays = [
             [],
         ] * len(self.ordered_nodes)
+        self.array_keys = []
         flushed_arrays = []
         for i, node in enumerate(self.ordered_nodes):
             for input_key in node.input_keys:
+                if input_key not in self.array_keys:
+                    self.array_keys.append(input_key)
                 if (
                     input_key not in flushed_arrays
                     and input_key not in self.output_keys
@@ -355,28 +358,50 @@ class LeibNet(Module):
         return {key: self.buffer[key] for key in self.output_keys}
         # return self.buffer
 
-    def to_mermaid(self, vertical: bool = False):
+    def to_mermaid(self, separate_arrays: bool = False, vertical: bool = True):
         # function for converting network to mermaid graph
         # NOTE: mermaid graphs can be rendered at https://mermaid-js.github.io/mermaid-live-editor/
+        def seps(_type):
+            if "downsample" in _type:
+                in_sep = "-.-"
+                out_sep = "-.->"
+            elif "upsample" in _type:
+                in_sep = "==="
+                out_sep = "==>"
+            else:
+                in_sep = "---"
+                out_sep = "-->"
+            return in_sep, out_sep
+
         if vertical:
             outstring = "graph TD\n"
         else:
             outstring = "graph LR\n"
         for node in self.nodes:
-            outstring += f"\t{node.id}({node.id})\n"
-        for node in self.nodes:
-            # for input_key in node.input_keys:
-            #     outstring += f"\t{self.output_to_node_id[input_key]}-->{node.id}\n"
-            for key in node.input_keys:
-                if "downsample" in node._type:
-                    # outstring += f"\t{node.id}-.->{key}\n"
-                    outstring += f"\t{key}-.->{node.id}\n"
-                elif "upsample" in node._type:
-                    # outstring += f"\t{node.id}==>{key}\n"
-                    outstring += f"\t{key}==>{node.id}\n"
-                else:
-                    # outstring += f"\t{node.id}-->{key}\n"
-                    outstring += f"\t{key}-->{node.id}\n"
+            outstring += f"\tnode-{node.id}(({node.id}))\n"
+        if separate_arrays:
+            for key in self.array_keys:
+                outstring += f"\t{key}[{key}]\n"
+            for node in self.nodes:
+                in_sep, out_sep = seps(node._type)
+                for input_key in node.input_keys:
+                    outstring += f"\t{input_key}{in_sep}node-{node.id}\n"
+                for output_key in node.output_keys:
+                    outstring += f"\tnode-{node.id}{out_sep}{output_key}\n"
+        else:
+            for node in self.nodes:
+                for input_key in node.input_keys:
+                    try:
+                        in_name = f"node-{self.output_to_node_id[input_key]}"
+                        in_sep, out_sep = seps(
+                            self.nodes_dict[self.output_to_node_id[input_key]]._type
+                        )
+                    except KeyError:
+                        in_name = input_key
+                        out_sep = "-->"
+                    outstring += f"\t{in_name}{out_sep}node-{node.id}\n"
+
+        print(outstring)
         return outstring
 
     def draw(self, type: str = "spiral", node_size: int = 1000, font_size: int = 8):
