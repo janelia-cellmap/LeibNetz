@@ -1,6 +1,6 @@
 # %%
 import torch
-from architectures.torch.leibnetz.unet_constructor import build_unet as leibnetz_unet
+from architectures.torch.leibnetz.unet import build_unet as leibnetz_unet
 from funlib.learn.torch.models import UNet as funlib_unet
 
 def benchmark():
@@ -10,6 +10,7 @@ def benchmark():
     f_unet = funlib_unet(
         downsample_factors=[(2, 2, 2), (2, 2, 2)],
         kernel_size_down=[[(3, 3, 3), (3, 3, 3), (3, 3, 3)],]*3,
+        kernel_size_up=[[(3, 3, 3), (3, 3, 3), (3, 3, 3)],]*3,
         in_channels=1,
         num_fmaps_out=1,
         num_fmaps=12,
@@ -17,6 +18,7 @@ def benchmark():
     f_unet_c = torch.compile(funlib_unet(
         downsample_factors=[(2, 2, 2), (2, 2, 2)],
         kernel_size_down=[[(3, 3, 3), (3, 3, 3), (3, 3, 3)],]*3,
+        kernel_size_up=[[(3, 3, 3), (3, 3, 3), (3, 3, 3)],]*3,
         in_channels=1,
         num_fmaps_out=1,
         num_fmaps=12,

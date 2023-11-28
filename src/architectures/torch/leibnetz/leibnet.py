@@ -16,7 +16,7 @@ class LeibNet(Module):
     def __init__(self, nodes, outputs: dict[str, Sequence[Tuple]], retain_buffer=True):
         super().__init__()
         self.nodes = nodes
-        self.nodes_dict = {node.id: node for node in nodes}
+        self.nodes_dict = torch.nn.ModuleDict({node.id: node for node in nodes})
         self.graph = nx.DiGraph()
         self.assemble(outputs)
         self.retain_buffer = retain_buffer
@@ -132,6 +132,7 @@ class LeibNet(Module):
         self.recurse_scales(self.output_nodes, node_scales_todo, scale_buffer)
 
         # walk along input paths for each node to determine least common scale
+        all_scales = []
         for node in self.ordered_nodes:
             self.graph.nodes[node]["scale"] = node.scale
             scales = [node.scale]
@@ -148,6 +149,8 @@ class LeibNet(Module):
             scales = np.ceil(scales).astype(int)
             scales = scales[scales.sum(axis=1) > 0]  # remove NaN scales
             node.set_least_common_scale(np.lcm.reduce(scales))
+            all_scales.append(scales)
+        self.least_common_scale = np.lcm.reduce(all_scales)
 
         # Determine output shapes closest to requested output shapes,
         # and determine corresponding input shapes
@@ -249,12 +252,17 @@ class LeibNet(Module):
         return min_input_shapes, min_output_shapes
 
     def is_valid_input_shape(self, input_key, input_shape):
-        raise NotImplementedError("This has not been fully implemented yet.")
+        # raise NotImplementedError("This has not been fully implemented yet.")
         return (input_shape >= self.min_input_shapes[input_key]).all() and (
             (input_shape - self.min_input_shapes[input_key])
-            % self.step_valid_shapes[input_key]
+            % self.step_valid_shapes(input_key)
             == 0
         ).all()
+
+    def step_valid_shapes(self, input_key):
+        input_scale = self.input_shapes[input_key][1]
+        step_size = self.least_common_scale / input_scale
+        return step_size.astype(int)
 
     def check_input_shapes(self, inputs: dict):
         # check if inputs are valid
@@ -266,7 +274,10 @@ class LeibNet(Module):
     def get_example_inputs(self, device: device = None):
         # function for generating example inputs
         if device is None:
-            device = self.device
+            if torch.cuda.is_available():
+                device = torch.device("cuda")
+            else:
+                device = torch.device("cpu")
         inputs = {}
         for k, v in self.input_shapes.items():
             inputs[k] = torch.rand(
@@ -280,53 +291,17 @@ class LeibNet(Module):
 
     # TODO: Add specification for sending arrays to different devices during forward pass
 
-    def train(self, mode: bool = True):
-        # function for setting network to train mode
-        for node in self.nodes:
-            node.train(mode)
-
-    def eval(self):
-        # function for setting network to eval mode
-        for node in self.nodes:
-            node.eval()
-
-    def to(self, device: device):
-        # function for moving network to device
-        self.device = device
-        for node in self.nodes:
-            node.to(device)
-
-    def cuda(self, device: int | device | None = None):
-        # function for moving network to cuda
-        if device is None:
-            device = torch.cuda.current_device()
-        elif isinstance(device, int):
-            device = torch.device(f"cuda:{device}")
-        self.device = device
-        self.to(device)
-
-    def cpu(self):
-        # function for moving network to cpu
-        self.device = torch.device("cpu")
-        self.to(self.device)
-
-    def modules(self):
-        # function for returning all modules in network
-        return [modules for node in self.nodes for modules in node.modules()]
-
-    def parameters(self):
-        # function for returning all parameters in network
-        return [param for node in self.nodes for param in node.parameters()]
+    @property
+    def devices(self):
+        devices = []
+        for parameters in self.parameters():
+            devices.append(parameters.device)
+        return devices
 
     def forward(self, inputs):
         # function for forwarding data through the network
         # inputs is a dictionary of tensors
         # outputs is a dictionary of tensors
-
-        # # check if inputs are valid
-        # if not self.check_input_shapes(inputs):
-        #     msg = f"{inputs} is not a valid input shape."
-        #     raise ValueError(msg)
 
         # initialize buffer
         self.buffer = inputs
@@ -359,7 +334,7 @@ class LeibNet(Module):
         return {key: self.buffer[key] for key in self.output_keys}
         # return self.buffer
 
-    def to_mermaid(self, separate_arrays: bool = False, vertical: bool = True):
+    def to_mermaid(self, separate_arrays: bool = False, vertical: bool = False):
         # function for converting network to mermaid graph
         # NOTE: mermaid graphs can be rendered at https://mermaid-js.github.io/mermaid-live-editor/
         def seps(_type):
@@ -398,7 +373,8 @@ class LeibNet(Module):
             outstring += f"\tnode-{node.id}{s}{node.id}{e}\n"
         if separate_arrays:
             for key in self.array_keys:
-                outstring += f"\t{key}[{key}]\n"
+                size_str = "x".join([str(int(s)) for s in self.array_shapes[key][0]])
+                outstring += f"\t{key}[{key}: {size_str}]\n"
             for node in self.nodes:
                 in_sep, out_sep = seps(node._type)
                 for input_key in node.input_keys:
