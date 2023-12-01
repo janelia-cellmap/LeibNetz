@@ -118,7 +118,7 @@ class AdditiveAttentionGateNode(Node):
                 g1 = self.crop(g1, smallest_shape)
         psi = torch.nn.functional.relu(g1 + x1)
         psi = self.psi(psi)
-        psi = torch.nn.functional.sigmoid(psi)
+        psi = torch.nn.functional.softmax(psi)
         output = torch.matmul(x, psi)
         return {key: val for key, val in zip(self.output_keys, [output])}
 
