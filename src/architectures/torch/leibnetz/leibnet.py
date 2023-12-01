@@ -149,7 +149,7 @@ class LeibNet(Module):
             scales = np.ceil(scales).astype(int)
             scales = scales[scales.sum(axis=1) > 0]  # remove NaN scales
             node.set_least_common_scale(np.lcm.reduce(scales))
-            all_scales.append(scales)
+            all_scales.extend(scales)
         self.least_common_scale = np.lcm.reduce(all_scales)
 
         # Determine output shapes closest to requested output shapes,
