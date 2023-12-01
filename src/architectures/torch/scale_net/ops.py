@@ -1,3 +1,8 @@
+import math
+import torch
+from funlib.learn.torch.models.conv4d import Conv4d
+
+
 class ConvPass(torch.nn.Module):
     def __init__(
         self,
@@ -33,7 +38,7 @@ class ConvPass(torch.nn.Module):
             else:
                 self.activation = activation()  # assume is function
         else:
-            self.activation = nn.Identity()
+            self.activation = torch.nn.Identity()
 
         self.residual = residual
         self.padding = padding
