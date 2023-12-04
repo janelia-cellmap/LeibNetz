@@ -1,4 +1,4 @@
-from typing import Optional, Sequence, Tuple, Union
+from typing import Iterable, Optional, Sequence, Tuple, Union
 import networkx as nx
 from torch import device
 import torch
@@ -13,9 +13,23 @@ logger = logging.getLogger(__name__)
 
 
 class LeibNet(Module):
-    def __init__(self, nodes, outputs: dict[str, Sequence[Tuple]], retain_buffer=True):
+    def __init__(
+        self,
+        nodes: Iterable,
+        outputs: dict[str, Sequence[Tuple]],
+        retain_buffer=True,
+    ):
         super().__init__()
-        self.nodes = nodes
+        full_node_list = []
+        for node in nodes:
+            if isinstance(node, Node):
+                full_node_list.append(node)
+            elif isinstance(node, LeibNet):
+                full_node_list.append(node.nodes)
+            else:
+                msg = f"{node} is not a Node or LeibNet."
+                raise ValueError(msg)
+        self.nodes = full_node_list
         self.nodes_dict = torch.nn.ModuleDict({node.id: node for node in nodes})
         self.graph = nx.DiGraph()
         self.assemble(outputs)
