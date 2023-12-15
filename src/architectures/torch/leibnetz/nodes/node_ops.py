@@ -95,7 +95,7 @@ class ConvPass(nn.Module):
     def crop(self, x, shape):
         """Center-crop x to match spatial dimensions given by shape."""
 
-        x_target_size = x.size()[: -self.dims] + shape
+        x_target_size = x.size()[: -self.dims] + np.array(shape)
 
         offset = tuple((a - b) // 2 for a, b in zip(x.size(), x_target_size))
 

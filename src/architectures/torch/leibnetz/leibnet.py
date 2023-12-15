@@ -6,6 +6,7 @@ from torch.nn import Module
 import matplotlib.pyplot as plt
 import numpy as np
 from architectures.torch.leibnetz.nodes import Node
+from model_opt.apis import optimize
 
 import logging
 
@@ -25,6 +26,7 @@ class LeibNet(Module):
             if isinstance(node, Node):
                 full_node_list.append(node)
             elif isinstance(node, LeibNet):
+                # TODO: nest naming, so a LeibNet can be a node and its nodes will get unique ids
                 full_node_list.append(node.nodes)
             else:
                 msg = f"{node} is not a Node or LeibNet."
@@ -455,3 +457,13 @@ class LeibNet(Module):
             node_size=node_size,
             # node_shape="s"
         )
+
+    def trace(self):
+        self.traced_model = torch.jit.trace(
+            self, self.get_example_inputs(), strict=False
+        )
+        return self.traced_model
+
+    def optimize(self):
+        self.optimized_model = optimize(self, self.get_example_inputs())
+        return self.optimized_model
