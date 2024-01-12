@@ -6,6 +6,7 @@ from torch.nn import Module
 import matplotlib.pyplot as plt
 import numpy as np
 from architectures.torch.leibnetz.nodes import Node
+
 from model_opt.apis import optimize
 
 import logging
@@ -314,7 +315,7 @@ class LeibNet(Module):
             devices.append(parameters.device)
         return devices
 
-    def forward(self, inputs):
+    def forward(self, inputs: dict[str, torch.Tensor]):
         # function for forwarding data through the network
         # inputs is a dictionary of tensors
         # outputs is a dictionary of tensors
@@ -458,10 +459,14 @@ class LeibNet(Module):
             # node_shape="s"
         )
 
-    def trace(self):
-        self.traced_model = torch.jit.trace(
-            self, self.get_example_inputs(), strict=False
+    # TODO: Make fully traceable :/
+    def trace(self, inputs: dict[str, torch.Tensor] = None):
+        logger.warning(
+            "Make sure you include inputs argument if you want to use non-minimum input shapes in traced model."
         )
+        if inputs is None:
+            inputs = self.get_example_inputs()
+        self.traced_model = torch.jit.trace(self, inputs, strict=False)
         return self.traced_model
 
     def optimize(self):

@@ -2,11 +2,13 @@
 import torch
 from architectures.torch.leibnetz.unet import build_unet as leibnetz_unet
 from funlib.learn.torch.models import UNet as funlib_unet
+# set flag to improve training speeds
+torch.backends.cudnn.benchmark = True
 
 def benchmark():
     l_unet = leibnetz_unet()
-    l_unet_c = torch.compile(leibnetz_unet())
-
+    l_unet_c = leibnetz_unet().trace()
+    
     f_unet = funlib_unet(
         downsample_factors=[(2, 2, 2), (2, 2, 2)],
         kernel_size_down=[[(3, 3, 3), (3, 3, 3), (3, 3, 3)],]*3,
@@ -15,14 +17,14 @@ def benchmark():
         num_fmaps_out=1,
         num_fmaps=12,
         fmap_inc_factor=2,)
-    f_unet_c = torch.compile(funlib_unet(
-        downsample_factors=[(2, 2, 2), (2, 2, 2)],
-        kernel_size_down=[[(3, 3, 3), (3, 3, 3), (3, 3, 3)],]*3,
-        kernel_size_up=[[(3, 3, 3), (3, 3, 3), (3, 3, 3)],]*3,
-        in_channels=1,
-        num_fmaps_out=1,
-        num_fmaps=12,
-        fmap_inc_factor=2,))
+    # f_unet_c = torch.compile(funlib_unet(
+    #     downsample_factors=[(2, 2, 2), (2, 2, 2)],
+    #     kernel_size_down=[[(3, 3, 3), (3, 3, 3), (3, 3, 3)],]*3,
+    #     kernel_size_up=[[(3, 3, 3), (3, 3, 3), (3, 3, 3)],]*3,
+    #     in_channels=1,
+    #     num_fmaps_out=1,
+    #     num_fmaps=12,
+    #     fmap_inc_factor=2,))
 
     def get_input_dict(device):
         inputs = {}
@@ -35,14 +37,14 @@ def benchmark():
                 + tuple(v[0].astype(int))
             ).to(device)
         return inputs
-
+    
     def get_input(device):
         return torch.rand((1,1,)+tuple(l_unet.input_shapes["input"][0].astype(int))).to(device)
 
     def benchmark_cpu():
         nonlocal get_input_dict, get_input
         l_unet.cpu()
-        # l_unet_c.cpu()
+        l_unet_c.cpu()
         f_unet.cpu()
         # f_unet_c.cpu()
         print("_____________________________________________________")
@@ -50,21 +52,23 @@ def benchmark():
         print("_____________________________________________________")
         print()
         print("Leibnetz UNet")
-        # print("\tNormal:")
-        %timeit l_unet(get_input_dict("cpu"))
-        # print("\tCompiled:")
-        # %timeit l_unet_c(get_input_dict("cpu"))
+        print("\tNormal:")
+        inputs = get_input_dict("cpu")
+        %timeit l_unet(inputs)
+        print("\tTraced:")
+        %timeit l_unet_c(inputs)
         print()
         print("Funlib UNet")
         # print("\tNormal:")
-        %timeit f_unet(get_input("cpu"))
+        inputs = get_input("cpu")
+        %timeit f_unet(inputs)
         # print("\tCompiled:")
-        # %timeit f_unet_c(get_input("cpu"))
+        # %timeit f_unet_c(inputs)
 
     def benchmark_gpu():
         nonlocal get_input_dict, get_input
         l_unet.cuda()
-        # l_unet_c.cuda()
+        l_unet_c.cuda()
         f_unet.cuda()
         # f_unet_c.cuda()
         print("_____________________________________________________")
@@ -72,20 +76,22 @@ def benchmark():
         print("_____________________________________________________")
         print()
         print("Leibnetz UNet")
-        # print("\tNormal:")
-        %timeit l_unet(get_input_dict("cuda"))
-        # print("\tCompiled:")
-        # %timeit l_unet_c(get_input_dict("cuda"))
+        print("\tNormal:")
+        inputs = get_input_dict("cuda")
+        %timeit l_unet(inputs)
+        print("\tTraced:")
+        %timeit l_unet_c(inputs)
         print()
         print("Funlib UNet")
         # print("\tNormal:")
-        %timeit f_unet(get_input("cuda"))
+        inputs = get_input("cuda")
+        %timeit f_unet(inputs)
         # print("\tCompiled:")
-        # %timeit f_unet_c(get_input("cuda"))
+        # %timeit f_unet_c(inputs)
 
     def benchmark_eval():
         l_unet.eval()
-        # l_unet_c.eval()
+        l_unet_c.eval()
         f_unet.eval()
         # f_unet_c.eval()
         print("=====================================================")
@@ -96,7 +102,7 @@ def benchmark():
 
     def benchmark_train():
         l_unet.train()
-        # l_unet_c.train()
+        l_unet_c.train()
         f_unet.train()
         # f_unet_c.train()
         print("=====================================================")

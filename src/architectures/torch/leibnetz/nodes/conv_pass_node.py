@@ -60,13 +60,15 @@ class ConvPassNode(Node):
             len(shapes) > 0
         ), f"No inputs for node {self.id}, with expected inputs {self.input_keys}"
         smallest_shape = np.min(shapes, axis=0)
+        # smallest_shape = torch.min(torch.as_tensor(shapes), dim=0)
         assert len(smallest_shape) == self.ndims, (
             f"Input shapes {shapes} have wrong dimensionality for node {self.id}, "
             f"with expected inputs {self.input_keys} of dimensionality {self.ndims}"
         )
         for key in self.input_keys:
-            if np.all(inputs[key].shape[-self.ndims :] != smallest_shape):
-                inputs[key] = self.crop(inputs[key], smallest_shape)
+            # NOTE: "if" omitted to allow torch tracing
+            # if any(inputs[key].shape[-self.ndims :] != smallest_shape):
+            inputs[key] = self.crop(inputs[key], smallest_shape)
         # concatenate inputs to single tensor in the channel dimension
         inputs_tensor = torch.cat([inputs[key] for key in self.input_keys], dim=1)
 
@@ -155,28 +157,24 @@ class ConvPassNode(Node):
 
         return (spatial_shape - target_spatial_shape) / self.scale
 
-    def crop_to_factor(self, x):
-        shape = x.size()
-        shape = shape[-self.ndims :]
+    def crop_to_factor(self, x: torch.Tensor):
+        shape = x.shape[-self.ndims :]
         target_shape = shape - self.factor_crop(shape)
-        if (target_shape != shape).all():
-            assert all(
-                ((t > c) for t, c in zip(target_shape, self.convolution_crop))
-            ), (
-                "Feature map with shape %s is too small to ensure "
-                "translation equivariance with self.least_common_scale %s and following "
-                "convolutions %s"
-                % (x.size(), self.least_common_scale, self.kernel_sizes)
-            )
+        # NOTE: "if" omitted to allow torch tracing
+        # if any(target_shape != shape):
+        assert all(((t >= c) for t, c in zip(target_shape, self.convolution_crop))), (
+            "Feature map with shape %s is too small to ensure "
+            "translation equivariance with self.least_common_scale %s and following "
+            "convolutions %s" % (x.size(), self.least_common_scale, self.kernel_sizes)
+        )
 
-            return self.crop(x, target_shape.astype(int))
-
-        return x
+        return self.crop(x, target_shape.astype(int))
+        # return x
 
     def crop(self, x: torch.Tensor, shape):
         """Center-crop x to match spatial dimensions given by shape."""
 
-        x_target_size = x.size()[: -self.ndims] + tuple(shape)
+        x_target_size = x.shape[: -self.ndims] + tuple(shape)
 
         offset = tuple((a - b) // 2 for a, b in zip(x.size(), x_target_size))
 
