@@ -175,8 +175,6 @@ class LeibNet(Module):
         self.min_input_shapes, self.min_output_shapes = self.compute_minimal_shapes()
 
     def recurse_scales(self, nodes, node_scales_todo, scale_buffer):
-        if len(node_scales_todo) == 0 or len(nodes) == 0:
-            return
         for node in nodes:
             if node not in node_scales_todo:
                 continue
@@ -188,7 +186,7 @@ class LeibNet(Module):
                     key = False
             assert (
                 key
-            ), f'Output "{key}" not in scale buffer. Please specify all outputs.'
+            ), f'No output keys from node "{node.id}" in scale buffer. Please specify all outputs.'
             scale = np.array(scale_buffer[key]).astype(int)
             if hasattr(node, "set_scale"):
                 node.set_scale(scale)
@@ -204,7 +202,7 @@ class LeibNet(Module):
 
             node_scales_todo.remove(node)
             next_nodes = list(self.graph.predecessors(node))
-            if len(next_nodes) == 0:
+            if len(node_scales_todo) == 0 or len(next_nodes) == 0:
                 continue
             node_scales_todo, scale_buffer = self.recurse_scales(
                 next_nodes, node_scales_todo, scale_buffer
@@ -288,6 +286,7 @@ class LeibNet(Module):
             shapes_valid &= self.is_valid_input_shape(input_key, val.shape)
         return shapes_valid
 
+    # @torch.jit.export
     def get_example_inputs(self, device: device = None):
         # function for generating example inputs
         if device is None:
@@ -351,6 +350,7 @@ class LeibNet(Module):
         return {key: self.buffer[key] for key in self.output_keys}
         # return self.buffer
 
+    # @torch.jit.export
     def to_mermaid(self, separate_arrays: bool = False, vertical: bool = False):
         # function for converting network to mermaid graph
         # NOTE: mermaid graphs can be rendered at https://mermaid-js.github.io/mermaid-live-editor/
@@ -466,7 +466,9 @@ class LeibNet(Module):
         )
         if inputs is None:
             inputs = self.get_example_inputs()
-        self.traced_model = torch.jit.trace(self, inputs, strict=False)
+        self.traced_model = torch.jit.trace(
+            self, inputs, strict=False
+        )  # TODO: Verify strict=False works correctly
         return self.traced_model
 
     def optimize(self):

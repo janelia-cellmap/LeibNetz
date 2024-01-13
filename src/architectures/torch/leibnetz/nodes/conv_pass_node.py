@@ -17,7 +17,7 @@ class ConvPassNode(Node):
         output_key_channels=None,
         activation="ReLU",
         padding="valid",
-        residual=False,
+        residual=False,  # TODO: Breaks with residual=True
         padding_mode="reflect",
         norm_layer=None,
         identifier=None,
@@ -46,11 +46,7 @@ class ConvPassNode(Node):
         self.color = "#00FF00"
         self._convolution_crop = None
 
-    def forward(self, inputs):
-        # implement any parsing of input/output buffers here
-        # buffers are dictionaries
-
-        # crop if necessary
+    def get_min_crops(self, inputs):
         shapes = [
             inputs[key].shape[-self.ndims :]
             for key in self.input_keys
@@ -69,6 +65,14 @@ class ConvPassNode(Node):
             # NOTE: "if" omitted to allow torch tracing
             # if any(inputs[key].shape[-self.ndims :] != smallest_shape):
             inputs[key] = self.crop(inputs[key], smallest_shape)
+        return inputs
+
+    def forward(self, inputs):
+        # implement any parsing of input/output buffers here
+        # buffers are dictionaries
+
+        # crop to same size if necessary
+        inputs = self.get_min_crops(inputs)
         # concatenate inputs to single tensor in the channel dimension
         inputs_tensor = torch.cat([inputs[key] for key in self.input_keys], dim=1)
 

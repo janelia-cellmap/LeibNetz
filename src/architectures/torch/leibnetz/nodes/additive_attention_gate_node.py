@@ -11,9 +11,9 @@ class AdditiveAttentionGateNode(Node):
         output_keys,
         gating_key,
         input_key,
-        input_nc=None,
-        gating_nc=None,
-        output_nc=None,
+        output_nc,
+        gating_nc,
+        input_nc,
         identifier=None,
         ndims=3,
     ) -> None:
@@ -56,21 +56,15 @@ class AdditiveAttentionGateNode(Node):
         """
 
         super().__init__([input_key, gating_key], output_keys, identifier)
-        self.input_key = input_key
         self.gating_key = gating_key
-        self.kernel_sizes = [(1,) * self._ndims]
-        self.input_nc = input_nc
+        self.input_key = input_key
         self.gating_nc = gating_nc
+        self.input_nc = input_nc
         self.output_nc = output_nc
         self._ndims = ndims
+        self.kernel_sizes = [(1,) * self._ndims]
         self._type = __name__.split(".")[-1]
         self.color = "F00FF0F"
-
-        assert (
-            (input_nc is not None)
-            and (gating_nc is not None)
-            and (output_nc is not None)
-        ), "input_nc, gating_nc, and output_nc must be specified"
 
         self.W_g = ConvPass(
             self.gating_nc,
@@ -96,9 +90,34 @@ class AdditiveAttentionGateNode(Node):
             padding="same",
         )
 
+    def get_min_crops(self, inputs):
+        shapes = [
+            inputs[key].shape[-self.ndims :]
+            for key in self.input_keys
+            if inputs[key] is not None
+        ]
+        assert (
+            len(shapes) > 0
+        ), f"No inputs for node {self.id}, with expected inputs {self.input_keys}"
+        smallest_shape = np.min(shapes, axis=0)
+        # smallest_shape = torch.min(torch.as_tensor(shapes), dim=0)
+        assert len(smallest_shape) == self.ndims, (
+            f"Input shapes {shapes} have wrong dimensionality for node {self.id}, "
+            f"with expected inputs {self.input_keys} of dimensionality {self.ndims}"
+        )
+        for key in self.input_keys:
+            # NOTE: "if" omitted to allow torch tracing
+            # if any(inputs[key].shape[-self.ndims :] != smallest_shape):
+            inputs[key] = self.crop(inputs[key], smallest_shape)
+        return inputs
+
     def forward(self, inputs):  # TODO
         # implement any parsing of input/output buffers here
         # buffers are dictionaries
+
+        # crop to same size if necessary
+        inputs = self.get_min_crops(inputs)
+
         g = self.crop_to_factor(inputs[self.gating_key])
         x = self.crop_to_factor(inputs[self.input_key])
         g1 = self.W_g(g)
@@ -118,7 +137,7 @@ class AdditiveAttentionGateNode(Node):
                 g1 = self.crop(g1, smallest_shape)
         psi = torch.nn.functional.relu(g1 + x1)
         psi = self.psi(psi)
-        psi = torch.nn.functional.softmax(psi)
+        psi = torch.nn.functional.softmax(psi, dim=1)
         output = torch.matmul(x, psi)
         return {key: val for key, val in zip(self.output_keys, [output])}
 
@@ -133,7 +152,6 @@ class AdditiveAttentionGateNode(Node):
 
     def get_output_from_input_shape(self, input_shape):  # TODO
         output_shape = input_shape - self.factor_crop(input_shape)
-        # return {key: (output_shape, (1,) * self.ndims) for key in self.output_keys}
         return {key: (output_shape, self.scale) for key in self.output_keys}
 
     def factor_crop(self, input_shape):  # TODO
@@ -158,19 +176,13 @@ class AdditiveAttentionGateNode(Node):
         # s' = n*k + c
         spatial_shape = input_shape[-self.ndims :] * self.scale
         ns = (
-            int(math.floor(float(s - c) / f))
-            for s, c, f in zip(
+            int(math.floor(float(s) / f))
+            for s, f in zip(
                 spatial_shape,
-                self.resample_crop * self.scale,
                 self.least_common_scale,
             )
         )
-        target_spatial_shape = tuple(
-            n * f + c
-            for n, c, f in zip(
-                ns, self.resample_crop * self.scale, self.least_common_scale
-            )
-        )
+        target_spatial_shape = tuple(n * f for n, f in zip(ns, self.least_common_scale))
 
         return (spatial_shape - target_spatial_shape) / self.scale
 
