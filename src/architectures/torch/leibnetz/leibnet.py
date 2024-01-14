@@ -3,11 +3,10 @@ import networkx as nx
 from torch import device
 import torch
 from torch.nn import Module
-import matplotlib.pyplot as plt
 import numpy as np
 from architectures.torch.leibnetz.nodes import Node
 
-from model_opt.apis import optimize
+# from model_opt.apis import optimize
 
 import logging
 
@@ -40,6 +39,8 @@ class LeibNet(Module):
         self.retain_buffer = True
         if torch.cuda.is_available():
             self.cuda()
+        elif torch.backends.mps.is_available():
+            self.mps()
         else:
             self.cpu()
 
@@ -292,6 +293,8 @@ class LeibNet(Module):
         if device is None:
             if torch.cuda.is_available():
                 device = torch.device("cuda")
+            elif torch.backends.mps.is_available():
+                device = torch.device("mps")
             else:
                 device = torch.device("cpu")
         inputs = {}
@@ -313,6 +316,12 @@ class LeibNet(Module):
         for parameters in self.parameters():
             devices.append(parameters.device)
         return devices
+
+    def mps(self):
+        if torch.backends.mps.is_available():
+            self.to("mps")
+        else:
+            logger.error('Unable to move model to Apple Silicon ("mps")')
 
     def forward(self, inputs: dict[str, torch.Tensor]):
         # function for forwarding data through the network
