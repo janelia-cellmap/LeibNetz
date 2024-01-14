@@ -172,7 +172,7 @@ class LeibNet(Module):
 
         # Determine output shapes closest to requested output shapes,
         # and determine corresponding input shapes
-        self.input_shapes, self.output_shapes = self.compute_shapes(outputs)
+        self._input_shapes, self._output_shapes = self.compute_shapes(outputs)
         self.min_input_shapes, self.min_output_shapes = self.compute_minimal_shapes()
 
     def recurse_scales(self, nodes, node_scales_todo, scale_buffer):
@@ -249,9 +249,9 @@ class LeibNet(Module):
             logger.info(f"{key}: {output_shapes[key]}")
 
         if set:
-            self.input_shapes = input_shapes
-            self.output_shapes = output_shapes
-            self.array_shapes = shape_buffer
+            self._input_shapes = input_shapes
+            self._output_shapes = output_shapes
+            self._array_shapes = shape_buffer
 
         return input_shapes, output_shapes
 
@@ -276,7 +276,7 @@ class LeibNet(Module):
         ).all()
 
     def step_valid_shapes(self, input_key):
-        input_scale = self.input_shapes[input_key][1]
+        input_scale = self._input_shapes[input_key][1]
         step_size = self.least_common_scale / input_scale
         return step_size.astype(int)
 
@@ -298,7 +298,7 @@ class LeibNet(Module):
             else:
                 device = torch.device("cpu")
         inputs = {}
-        for k, v in self.input_shapes.items():
+        for k, v in self._input_shapes.items():
             inputs[k] = torch.rand(
                 (
                     1,
@@ -309,13 +309,30 @@ class LeibNet(Module):
         return inputs
 
     # TODO: Add specification for sending arrays to different devices during forward pass
-
     @property
     def devices(self):
         devices = []
         for parameters in self.parameters():
             devices.append(parameters.device)
         return devices
+
+    def _get_shapes(self, shape_dict: dict):
+        return {
+            k: {"shape": tuple(s[0].astype(int)), "scale": tuple(s[1])}
+            for k, s in shape_dict.items()
+        }
+
+    @property
+    def input_shapes(self):
+        return self._get_shapes(self._input_shapes)
+
+    @property
+    def output_shapes(self):
+        return self._get_shapes(self._output_shapes)
+
+    @property
+    def array_shapes(self):
+        return self._get_shapes(self._array_shapes)
 
     def mps(self):
         if torch.backends.mps.is_available():
@@ -399,18 +416,18 @@ class LeibNet(Module):
             outstring += f"\tnode-{node.id}{s}{node.id}{e}\n"
         if separate_arrays:
             for key in self.array_keys:
-                size_str = "x".join([str(int(s)) for s in self.array_shapes[key][0]])
+                size_str = "x".join([str(int(s)) for s in self._array_shapes[key][0]])
                 outstring += f"\t{key}[{key}: {size_str}]\n"
             for node in self.nodes:
                 in_sep, out_sep = seps(node._type)
                 for input_key in node.input_keys:
-                    scales = [f"{s}nm" for s in self.array_shapes[input_key][1]]
+                    scales = [f"{s}nm" for s in self._array_shapes[input_key][1]]
                     scale_str = "x".join(scales)
                     outstring += f"\tsubgraph {scale_str}\n"
                     outstring += f"\t\t{input_key}{in_sep}node-{node.id}\n"
                     outstring += "\tend\n"
                 for output_key in node.output_keys:
-                    scales = [f"{s}nm" for s in self.array_shapes[output_key][1]]
+                    scales = [f"{s}nm" for s in self._array_shapes[output_key][1]]
                     scale_str = "x".join(scales)
                     outstring += f"\tsubgraph {scale_str}\n"
                     outstring += f"\t\tnode-{node.id}{out_sep}{output_key}\n"
@@ -427,7 +444,7 @@ class LeibNet(Module):
                     except KeyError:
                         in_name = input_key
                         out_sep = "-->"
-                    scales = [f"{s}nm" for s in self.array_shapes[input_key][1]]
+                    scales = [f"{s}nm" for s in self._array_shapes[input_key][1]]
                     scale_str = "x".join(scales)
                     outstring += f"\tsubgraph {scale_str}\n"
                     outstring += f"\t\t{in_name}{out_sep}node-{node.id}\n"

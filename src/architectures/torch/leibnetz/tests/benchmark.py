@@ -28,7 +28,7 @@ def benchmark():
 
     def get_input_dict(device):
         inputs = {}
-        for k, v in l_unet.input_shapes.items():
+        for k, v in l_unet._input_shapes.items():
             inputs[k] = torch.rand(
                 (
                     1,
@@ -39,7 +39,7 @@ def benchmark():
         return inputs
     
     def get_input(device):
-        return torch.rand((1,1,)+tuple(l_unet.input_shapes["input"][0].astype(int))).to(device)
+        return torch.rand((1,1,)+tuple(l_unet._input_shapes["input"][0].astype(int))).to(device)
 
     def benchmark_cpu():
         nonlocal get_input_dict, get_input

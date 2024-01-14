@@ -125,7 +125,7 @@ def test_leibnet(device="cpu", **unet_kwargs):
     input_nc = unet_kwargs.get("input_nc", 1)
 
     inputs = {}
-    for k, v in unet.input_shapes.items():
+    for k, v in unet._input_shapes.items():
         inputs[k] = torch.rand(
             (
                 1,
@@ -137,7 +137,7 @@ def test_leibnet(device="cpu", **unet_kwargs):
     # test forward pass
     outputs = unet(inputs)
     for k, v in outputs.items():
-        assert np.all([v.shape[-unet.ndims :] == unet.output_shapes[k][0]])
+        assert np.all([v.shape[-unet.ndims :] == unet._output_shapes[k][0]])
 
     # test backward pass
     loss = torch.sum(torch.stack([torch.sum(v) for v in outputs.values()]))
@@ -152,10 +152,18 @@ def test_leibnet(device="cpu", **unet_kwargs):
     optimizer.step()
 
 
-def test_leibnet_cuda():
-    test_leibnet("cuda")
+def test_leibnet_gpu():
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+    elif torch.backends.mps.is_available():
+        device = torch.device("mps")
+    else:
+        print("GPU not available.")
+        return
+
+    test_leibnet(device)
     test_leibnet(
-        "cuda",
+        device,
         downsample_factors=[(3, 3, 3), (2, 2, 2), (2, 2, 2)],
         kernel_sizes=[(5, 5, 5), (3, 3, 3)],
         input_nc=2,
@@ -177,7 +185,7 @@ def test_leibnet_cpu():
 # %%
 if __name__ == "__main__":
     test_leibnet_cpu()
-    test_leibnet_cuda()
+    test_leibnet_gpu()
 
 # %% [markdown]
 # ```mermaid
