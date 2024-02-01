@@ -1,7 +1,7 @@
 # %%
 from timeit import Timer
-from architectures.torch.leibnetz import LeibNet
-from architectures.torch.leibnetz.nodes import (
+from leibnetz import LeibNet
+from leibnetz.nodes import (
     ResampleNode,
     ConvPassNode,
     AdditiveAttentionGateNode,
@@ -25,6 +25,7 @@ def build_subnet(
     input_key = f"{subnet_id}_input"
     nodes = []
     c = 0
+    i = 0
     for i, downsample_factor in enumerate(downsample_factors):
         output_key = f"{subnet_id}_in_conv_{c}"
         nodes.append(

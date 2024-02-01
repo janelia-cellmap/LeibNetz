@@ -1,6 +1,6 @@
 # %%
 import torch
-from architectures.torch.leibnetz.unet import build_unet as leibnetz_unet
+from leibnetz.unet import build_unet as leibnetz_unet
 from funlib.learn.torch.models import UNet as funlib_unet
 # set flag to improve training speeds
 torch.backends.cudnn.benchmark = True

@@ -1,7 +1,7 @@
 import unittest
 import torch
 import numpy as np
-from architectures.torch.leibnetz.nodes import ConvPassNode
+from leibnetz.nodes import ConvPassNode
 
 
 class TestConvPassNode(unittest.TestCase):

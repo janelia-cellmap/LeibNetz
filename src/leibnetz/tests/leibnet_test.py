@@ -2,8 +2,8 @@
 # Unit tests for the LeibNet architecture using the U-Net constructor
 
 import torch
-from architectures.torch.leibnetz import LeibNet
-from architectures.torch.leibnetz.nodes import ResampleNode, ConvPassNode
+from leibnetz import LeibNet
+from leibnetz.nodes import ResampleNode, ConvPassNode
 import numpy as np
 
 
@@ -16,7 +16,7 @@ def build_unet(
     base_nc=12,
     nc_increase_factor=2,
 ):
-    # from architectures.torch.leibnetz.unet_constructor import build_unet
+    # from leibnetz.unet_constructor import build_unet
 
     # return build_unet(
     #     top_resolution,

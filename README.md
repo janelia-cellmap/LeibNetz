@@ -1,2 +1,2 @@
-# architectures
-A collection of existing and custom built models for use with DaCapo and other ML training pipelines.
+# LeibNetz
+A lightweight and modular library for rapidly developing and constructing PyTorch models deep learning.

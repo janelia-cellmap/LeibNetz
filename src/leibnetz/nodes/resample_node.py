@@ -1,8 +1,8 @@
 from typing import Iterable, Sequence, Tuple
 import numpy as np
 import torch
-from architectures.torch.leibnetz.nodes.resample_ops import Upsample, MaxDownsample
-from architectures.torch.leibnetz.nodes import Node
+from leibnetz.nodes.resample_ops import Upsample, MaxDownsample
+from leibnetz.nodes import Node
 
 
 class ResampleNode(Node):

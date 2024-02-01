@@ -4,7 +4,7 @@ from torch import device
 import torch
 from torch.nn import Module
 import numpy as np
-from architectures.torch.leibnetz.nodes import Node
+from leibnetz.nodes import Node
 
 # from model_opt.apis import optimize
 

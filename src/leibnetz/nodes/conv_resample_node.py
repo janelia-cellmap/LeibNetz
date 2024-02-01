@@ -1,7 +1,7 @@
 import numpy as np
 import torch
-from architectures.torch.leibnetz.nodes.resample_ops import Upsample, ConvDownsample
-from architectures.torch.leibnetz.nodes.node_ops import ConvPass
+from leibnetz.nodes.resample_ops import Upsample, ConvDownsample
+from leibnetz.nodes.node_ops import ConvPass
 
 
 class ConvResampleNode(torch.nn.Module):
