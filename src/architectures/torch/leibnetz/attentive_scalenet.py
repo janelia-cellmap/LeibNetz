@@ -1,7 +1,11 @@
 # %%
 from timeit import Timer
 from architectures.torch.leibnetz import LeibNet
-from architectures.torch.leibnetz.nodes import ResampleNode, ConvPassNode
+from architectures.torch.leibnetz.nodes import (
+    ResampleNode,
+    ConvPassNode,
+    AdditiveAttentionGateNode,
+)
 import numpy as np
 
 
@@ -79,10 +83,24 @@ def build_subnet(
         )
         input_key = output_key
         c -= 1
+        output_key = f"{subnet_id}_additiveAttentionGate_{c}"
+        nodes.append(
+            AdditiveAttentionGateNode(
+                output_keys=[output_key],
+                gating_key=input_key,
+                input_key=f"{subnet_id}_in_conv_{c}",
+                output_nc=base_nc * nc_increase_factor**i,
+                gating_nc=base_nc * nc_increase_factor ** (i + 1),
+                input_nc=base_nc * nc_increase_factor**i,
+                identifier=output_key,
+            )
+        )
+        input_key = output_key
         output_key = f"{subnet_id}_out_conv_{c}"
         nodes.append(
             ConvPassNode(
-                [input_key, f"{subnet_id}_in_conv_{c}"],
+                # [input_key, f"{subnet_id}_in_conv_{c}"],
+                [input_key, f"{subnet_id}_upsample_{i}"],
                 [output_key],
                 base_nc * nc_increase_factor**i
                 + base_nc * nc_increase_factor ** (i + 1),
@@ -117,7 +135,7 @@ def build_subnet(
 
 
 # %%
-def build_scale_net(subnet_dict_list: list[dict]):
+def build_attentive_scale_net(subnet_dict_list: list[dict]):
     nodes = []
     outputs = {}
     bottleneck_input_dict = None
@@ -142,25 +160,22 @@ def testing():
         {"top_resolution": (32, 32, 32)},
         {"top_resolution": (8, 8, 8)},
     ]
-    scalenet = build_scale_net(subnet_dict_list)
-    scalenet.array_shapes
+    leibnet = build_attentive_scale_net(subnet_dict_list)
+    # leibnet.array_shapes
     # %%
-    inputs = scalenet.get_example_inputs()
-    outputs = scalenet(inputs)
+    inputs = leibnet.get_example_inputs()
+    outputs = leibnet(inputs)
     # %%
     for key, val in outputs.items():
         print(f"{key}: {val.shape}")
 
     # %%
-    scalenet.to_mermaid()
+    leibnet.to_mermaid()
     # %%
-    scalenet.to_mermaid(separate_arrays=True)
+    leibnet.to_mermaid(separate_arrays=True)
 
     # %%
-    timer = Timer(lambda: scalenet(inputs))
+    timer = Timer(lambda: leibnet(inputs))
     num, time = timer.autorange()
     print(f"Time per run: {time/num} seconds")
-    return scalenet
-
-
-# %%
+    return leibnet

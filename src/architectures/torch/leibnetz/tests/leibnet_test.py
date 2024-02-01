@@ -125,7 +125,7 @@ def test_leibnet(device="cpu", **unet_kwargs):
     input_nc = unet_kwargs.get("input_nc", 1)
 
     inputs = {}
-    for k, v in unet.input_shapes.items():
+    for k, v in unet._input_shapes.items():
         inputs[k] = torch.rand(
             (
                 1,
@@ -137,7 +137,7 @@ def test_leibnet(device="cpu", **unet_kwargs):
     # test forward pass
     outputs = unet(inputs)
     for k, v in outputs.items():
-        assert np.all([v.shape[-unet.ndims :] == unet.output_shapes[k][0]])
+        assert np.all([v.shape[-unet.ndims :] == unet._output_shapes[k][0]])
 
     # test backward pass
     loss = torch.sum(torch.stack([torch.sum(v) for v in outputs.values()]))
@@ -152,10 +152,18 @@ def test_leibnet(device="cpu", **unet_kwargs):
     optimizer.step()
 
 
-def test_leibnet_cuda():
-    test_leibnet("cuda")
+def test_leibnet_gpu():
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+    elif torch.backends.mps.is_available():
+        device = torch.device("mps")
+    else:
+        print("GPU not available.")
+        return
+
+    test_leibnet(device)
     test_leibnet(
-        "cuda",
+        device,
         downsample_factors=[(3, 3, 3), (2, 2, 2), (2, 2, 2)],
         kernel_sizes=[(5, 5, 5), (3, 3, 3)],
         input_nc=2,
@@ -177,6 +185,98 @@ def test_leibnet_cpu():
 # %%
 if __name__ == "__main__":
     test_leibnet_cpu()
-    test_leibnet_cuda()
+    test_leibnet_gpu()
+
+# %% [markdown]
+# ```mermaid
+# graph LR
+# 	node-in_conv_0([in_conv_0])
+# 	node-downsample_0[\downsample_0/]
+# 	node-in_conv_1([in_conv_1])
+# 	node-downsample_1[\downsample_1/]
+# 	node-bottleneck([bottleneck])
+# 	node-upsample_1[/upsample_1\]
+# 	node-out_conv_1([out_conv_1])
+# 	node-upsample_0[/upsample_0\]
+# 	node-out_conv_0([out_conv_0])
+# 	node-output([output])
+# 	out_conv_0[out_conv_0: 20x20x20]
+# 	upsample_0[upsample_0: 28x28x28]
+# 	in_conv_0[in_conv_0: 76x76x76]
+# 	out_conv_1[out_conv_1: 14x14x14]
+# 	upsample_1[upsample_1: 20x20x20]
+# 	in_conv_1[in_conv_1: 32x32x32]
+# 	bottleneck[bottleneck: 10x10x10]
+# 	downsample_1[downsample_1: 16x16x16]
+# 	downsample_0[downsample_0: 38x38x38]
+# 	input[input: 82x82x82]
+# 	subgraph 8nmx8nmx8nm
+# 		input---node-in_conv_0
+# 	end
+# 	subgraph 8nmx8nmx8nm
+# 		node-in_conv_0-->in_conv_0
+# 	end
+# 	subgraph 8nmx8nmx8nm
+# 		in_conv_0-.-node-downsample_0
+# 	end
+# 	subgraph 16nmx16nmx16nm
+# 		node-downsample_0-.->downsample_0
+# 	end
+# 	subgraph 16nmx16nmx16nm
+# 		downsample_0---node-in_conv_1
+# 	end
+# 	subgraph 16nmx16nmx16nm
+# 		node-in_conv_1-->in_conv_1
+# 	end
+# 	subgraph 16nmx16nmx16nm
+# 		in_conv_1-.-node-downsample_1
+# 	end
+# 	subgraph 32nmx32nmx32nm
+# 		node-downsample_1-.->downsample_1
+# 	end
+# 	subgraph 32nmx32nmx32nm
+# 		downsample_1---node-bottleneck
+# 	end
+# 	subgraph 32nmx32nmx32nm
+# 		node-bottleneck-->bottleneck
+# 	end
+# 	subgraph 32nmx32nmx32nm
+# 		bottleneck===node-upsample_1
+# 	end
+# 	subgraph 16nmx16nmx16nm
+# 		node-upsample_1==>upsample_1
+# 	end
+# 	subgraph 16nmx16nmx16nm
+# 		upsample_1---node-out_conv_1
+# 	end
+# 	subgraph 16nmx16nmx16nm
+# 		in_conv_1---node-out_conv_1
+# 	end
+# 	subgraph 16nmx16nmx16nm
+# 		node-out_conv_1-->out_conv_1
+# 	end
+# 	subgraph 16nmx16nmx16nm
+# 		out_conv_1===node-upsample_0
+# 	end
+# 	subgraph 8nmx8nmx8nm
+# 		node-upsample_0==>upsample_0
+# 	end
+# 	subgraph 8nmx8nmx8nm
+# 		upsample_0---node-out_conv_0
+# 	end
+# 	subgraph 8nmx8nmx8nm
+# 		in_conv_0---node-out_conv_0
+# 	end
+# 	subgraph 8nmx8nmx8nm
+# 		node-out_conv_0-->out_conv_0
+# 	end
+# 	subgraph 8nmx8nmx8nm
+# 		out_conv_0---node-output
+# 	end
+# 	subgraph 8nmx8nmx8nm
+# 		node-output-->output
+# 	end
+# ```
+
 
 # %%

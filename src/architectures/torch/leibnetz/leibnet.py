@@ -1,11 +1,12 @@
-from typing import Optional, Sequence, Tuple, Union
+from typing import Iterable, Optional, Sequence, Tuple, Union
 import networkx as nx
 from torch import device
 import torch
 from torch.nn import Module
-import matplotlib.pyplot as plt
 import numpy as np
 from architectures.torch.leibnetz.nodes import Node
+
+# from model_opt.apis import optimize
 
 import logging
 
@@ -13,9 +14,24 @@ logger = logging.getLogger(__name__)
 
 
 class LeibNet(Module):
-    def __init__(self, nodes, outputs: dict[str, Sequence[Tuple]], retain_buffer=True):
+    def __init__(
+        self,
+        nodes: Iterable,
+        outputs: dict[str, Sequence[Tuple]],
+        retain_buffer=True,
+    ):
         super().__init__()
-        self.nodes = nodes
+        full_node_list = []
+        for node in nodes:
+            if isinstance(node, Node):
+                full_node_list.append(node)
+            elif isinstance(node, LeibNet):
+                # TODO: nest naming, so a LeibNet can be a node and its nodes will get unique ids
+                full_node_list.append(node.nodes)
+            else:
+                msg = f"{node} is not a Node or LeibNet."
+                raise ValueError(msg)
+        self.nodes = full_node_list
         self.nodes_dict = torch.nn.ModuleDict({node.id: node for node in nodes})
         self.graph = nx.DiGraph()
         self.assemble(outputs)
@@ -23,6 +39,8 @@ class LeibNet(Module):
         self.retain_buffer = True
         if torch.cuda.is_available():
             self.cuda()
+        elif torch.backends.mps.is_available():
+            self.mps()
         else:
             self.cpu()
 
@@ -154,12 +172,10 @@ class LeibNet(Module):
 
         # Determine output shapes closest to requested output shapes,
         # and determine corresponding input shapes
-        self.input_shapes, self.output_shapes = self.compute_shapes(outputs)
+        self._input_shapes, self._output_shapes = self.compute_shapes(outputs)
         self.min_input_shapes, self.min_output_shapes = self.compute_minimal_shapes()
 
     def recurse_scales(self, nodes, node_scales_todo, scale_buffer):
-        if len(node_scales_todo) == 0 or len(nodes) == 0:
-            return
         for node in nodes:
             if node not in node_scales_todo:
                 continue
@@ -171,7 +187,7 @@ class LeibNet(Module):
                     key = False
             assert (
                 key
-            ), f'Output "{key}" not in scale buffer. Please specify all outputs.'
+            ), f'No output keys from node "{node.id}" in scale buffer. Please specify all outputs.'
             scale = np.array(scale_buffer[key]).astype(int)
             if hasattr(node, "set_scale"):
                 node.set_scale(scale)
@@ -187,7 +203,7 @@ class LeibNet(Module):
 
             node_scales_todo.remove(node)
             next_nodes = list(self.graph.predecessors(node))
-            if len(next_nodes) == 0:
+            if len(node_scales_todo) == 0 or len(next_nodes) == 0:
                 continue
             node_scales_todo, scale_buffer = self.recurse_scales(
                 next_nodes, node_scales_todo, scale_buffer
@@ -233,9 +249,9 @@ class LeibNet(Module):
             logger.info(f"{key}: {output_shapes[key]}")
 
         if set:
-            self.input_shapes = input_shapes
-            self.output_shapes = output_shapes
-            self.array_shapes = shape_buffer
+            self._input_shapes = input_shapes
+            self._output_shapes = output_shapes
+            self._array_shapes = shape_buffer
 
         return input_shapes, output_shapes
 
@@ -260,7 +276,7 @@ class LeibNet(Module):
         ).all()
 
     def step_valid_shapes(self, input_key):
-        input_scale = self.input_shapes[input_key][1]
+        input_scale = self._input_shapes[input_key][1]
         step_size = self.least_common_scale / input_scale
         return step_size.astype(int)
 
@@ -271,15 +287,18 @@ class LeibNet(Module):
             shapes_valid &= self.is_valid_input_shape(input_key, val.shape)
         return shapes_valid
 
+    # @torch.jit.export
     def get_example_inputs(self, device: device = None):
         # function for generating example inputs
         if device is None:
             if torch.cuda.is_available():
                 device = torch.device("cuda")
+            elif torch.backends.mps.is_available():
+                device = torch.device("mps")
             else:
                 device = torch.device("cpu")
         inputs = {}
-        for k, v in self.input_shapes.items():
+        for k, v in self._input_shapes.items():
             inputs[k] = torch.rand(
                 (
                     1,
@@ -290,7 +309,6 @@ class LeibNet(Module):
         return inputs
 
     # TODO: Add specification for sending arrays to different devices during forward pass
-
     @property
     def devices(self):
         devices = []
@@ -298,7 +316,31 @@ class LeibNet(Module):
             devices.append(parameters.device)
         return devices
 
-    def forward(self, inputs):
+    def _get_shapes(self, shape_dict: dict):
+        return {
+            k: {"shape": tuple(s[0].astype(int)), "scale": tuple(s[1])}
+            for k, s in shape_dict.items()
+        }
+
+    @property
+    def input_shapes(self):
+        return self._get_shapes(self._input_shapes)
+
+    @property
+    def output_shapes(self):
+        return self._get_shapes(self._output_shapes)
+
+    @property
+    def array_shapes(self):
+        return self._get_shapes(self._array_shapes)
+
+    def mps(self):
+        if torch.backends.mps.is_available():
+            self.to("mps")
+        else:
+            logger.error('Unable to move model to Apple Silicon ("mps")')
+
+    def forward(self, inputs: dict[str, torch.Tensor]):
         # function for forwarding data through the network
         # inputs is a dictionary of tensors
         # outputs is a dictionary of tensors
@@ -334,6 +376,7 @@ class LeibNet(Module):
         return {key: self.buffer[key] for key in self.output_keys}
         # return self.buffer
 
+    # @torch.jit.export
     def to_mermaid(self, separate_arrays: bool = False, vertical: bool = False):
         # function for converting network to mermaid graph
         # NOTE: mermaid graphs can be rendered at https://mermaid-js.github.io/mermaid-live-editor/
@@ -373,18 +416,18 @@ class LeibNet(Module):
             outstring += f"\tnode-{node.id}{s}{node.id}{e}\n"
         if separate_arrays:
             for key in self.array_keys:
-                size_str = "x".join([str(int(s)) for s in self.array_shapes[key][0]])
+                size_str = "x".join([str(int(s)) for s in self._array_shapes[key][0]])
                 outstring += f"\t{key}[{key}: {size_str}]\n"
             for node in self.nodes:
                 in_sep, out_sep = seps(node._type)
                 for input_key in node.input_keys:
-                    scales = [f"{s}nm" for s in self.array_shapes[input_key][1]]
+                    scales = [f"{s}nm" for s in self._array_shapes[input_key][1]]
                     scale_str = "x".join(scales)
                     outstring += f"\tsubgraph {scale_str}\n"
                     outstring += f"\t\t{input_key}{in_sep}node-{node.id}\n"
                     outstring += "\tend\n"
                 for output_key in node.output_keys:
-                    scales = [f"{s}nm" for s in self.array_shapes[output_key][1]]
+                    scales = [f"{s}nm" for s in self._array_shapes[output_key][1]]
                     scale_str = "x".join(scales)
                     outstring += f"\tsubgraph {scale_str}\n"
                     outstring += f"\t\tnode-{node.id}{out_sep}{output_key}\n"
@@ -401,7 +444,7 @@ class LeibNet(Module):
                     except KeyError:
                         in_name = input_key
                         out_sep = "-->"
-                    scales = [f"{s}nm" for s in self.array_shapes[input_key][1]]
+                    scales = [f"{s}nm" for s in self._array_shapes[input_key][1]]
                     scale_str = "x".join(scales)
                     outstring += f"\tsubgraph {scale_str}\n"
                     outstring += f"\t\t{in_name}{out_sep}node-{node.id}\n"
@@ -441,3 +484,19 @@ class LeibNet(Module):
             node_size=node_size,
             # node_shape="s"
         )
+
+    # TODO: Make fully traceable :/
+    def trace(self, inputs: dict[str, torch.Tensor] = None):
+        logger.warning(
+            "Make sure you include inputs argument if you want to use non-minimum input shapes in traced model."
+        )
+        if inputs is None:
+            inputs = self.get_example_inputs()
+        self.traced_model = torch.jit.trace(
+            self, inputs, strict=False
+        )  # TODO: Verify strict=False works correctly
+        return self.traced_model
+
+    def optimize(self):
+        self.optimized_model = optimize(self, self.get_example_inputs())
+        return self.optimized_model
