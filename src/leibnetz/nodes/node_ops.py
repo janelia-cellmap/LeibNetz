@@ -44,6 +44,27 @@ class ConvPass(nn.Module):
         self.padding = padding
         self.padding_mode = padding_mode
         self.norm_layer = norm_layer
+        if isinstance(norm_layer, str):
+            try:
+                if norm_layer == "batch":
+                    norm_layer = {2: nn.BatchNorm2d, 3: nn.BatchNorm3d}[
+                        len(kernel_sizes[0])
+                    ]
+                elif norm_layer == "instance":
+                    norm_layer = {2: nn.InstanceNorm2d, 3: nn.InstanceNorm3d}[
+                        len(kernel_sizes[0])
+                    ]
+                elif norm_layer == "group":
+                    norm_layer = {2: nn.GroupNorm, 3: nn.GroupNorm}[
+                        len(kernel_sizes[0])
+                    ]
+                else:
+                    raise ValueError("Unknown normalization layer")
+            except KeyError:
+                raise RuntimeError(
+                    "%dD normalization not implemented" % len(kernel_sizes[0])
+                )
+
         self.input_nc = input_nc
         self.output_nc = output_nc
         self.kernel_sizes = kernel_sizes
@@ -51,6 +72,11 @@ class ConvPass(nn.Module):
         layers = []
 
         for i, kernel_size in enumerate(kernel_sizes):
+            if norm_layer is not None:
+                layers.append(norm_layer(output_nc))
+
+            layers.append(self.activation)
+
             self.dims = len(kernel_size)
 
             conv = {2: nn.Conv2d, 3: nn.Conv3d, 4: Conv4d}[self.dims]
@@ -82,12 +108,6 @@ class ConvPass(nn.Module):
             except KeyError:
                 raise RuntimeError("%dD convolution not implemented" % self.dims)
 
-            if norm_layer is not None:
-                layers.append(norm_layer(output_nc))
-
-            if not (residual and i == (len(kernel_sizes) - 1)):
-                layers.append(self.activation)
-
             input_nc = output_nc
 
         self.conv_pass = nn.Sequential(*layers)
@@ -112,4 +132,3 @@ class ConvPass(nn.Module):
                 init_x = self.crop(self.x_init_map(x), res.size()[-self.dims :])
             else:
                 init_x = self.x_init_map(x)
-            return self.activation(init_x + res)
