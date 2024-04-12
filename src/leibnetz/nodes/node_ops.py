@@ -73,7 +73,7 @@ class ConvPass(nn.Module):
 
         for i, kernel_size in enumerate(kernel_sizes):
             if norm_layer is not None:
-                layers.append(norm_layer(output_nc))
+                layers.append(norm_layer(input_nc))
 
             layers.append(self.activation)
 
@@ -115,7 +115,7 @@ class ConvPass(nn.Module):
     def crop(self, x, shape):
         """Center-crop x to match spatial dimensions given by shape."""
 
-        x_target_size = x.size()[: -self.dims] + np.array(shape)
+        x_target_size = x.shape[: -self.dims] + tuple(shape)
 
         offset = tuple((a - b) // 2 for a, b in zip(x.size(), x_target_size))
 
@@ -132,3 +132,4 @@ class ConvPass(nn.Module):
                 init_x = self.crop(self.x_init_map(x), res.size()[-self.dims :])
             else:
                 init_x = self.x_init_map(x)
+            return res + init_x

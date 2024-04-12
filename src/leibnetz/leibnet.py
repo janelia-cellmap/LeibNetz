@@ -340,7 +340,7 @@ class LeibNet(Module):
         else:
             logger.error('Unable to move model to Apple Silicon ("mps")')
 
-    def forward(self, inputs: dict[str, torch.Tensor]):
+    def forward(self, inputs: dict[str, dict[str, Sequence[int | float]]]):
         # function for forwarding data through the network
         # inputs is a dictionary of tensors
         # outputs is a dictionary of tensors

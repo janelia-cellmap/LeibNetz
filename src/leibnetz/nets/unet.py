@@ -12,6 +12,8 @@ def build_unet(
     output_nc=1,
     base_nc=12,
     nc_increase_factor=2,
+    norm_layer=None,
+    residual=False,
 ):
     # define downsample nodes
     downsample_factors = np.array(downsample_factors)
@@ -28,6 +30,8 @@ def build_unet(
                 base_nc * nc_increase_factor**i,
                 kernel_sizes,
                 identifier=output_key,
+                norm_layer=norm_layer,
+                residual=residual,
             ),
         )
         c += 1
@@ -53,6 +57,8 @@ def build_unet(
             base_nc * nc_increase_factor ** (i + 1),
             kernel_sizes,
             identifier=output_key,
+            norm_layer=norm_layer,
+            residual=residual,
         )
     )
     input_key = output_key
@@ -80,6 +86,8 @@ def build_unet(
                 base_nc * nc_increase_factor**i,
                 kernel_sizes,
                 identifier=output_key,
+                norm_layer=norm_layer,
+                residual=residual,
             )
         )
         input_key = output_key
@@ -94,6 +102,8 @@ def build_unet(
             # kernel_sizes,
             [(1,) * len(top_resolution)],
             identifier="output",
+            norm_layer=norm_layer,  # TODO: remove?
+            residual=residual,
         )
     )
 
