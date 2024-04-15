@@ -5,6 +5,7 @@ import torch
 from torch.nn import Module
 import numpy as np
 from leibnetz.nodes import Node
+from funlib.learn.torch.models.conv4d import Conv4d
 
 # from model_opt.apis import optimize
 
@@ -19,6 +20,7 @@ class LeibNet(Module):
         nodes: Iterable,
         outputs: dict[str, Sequence[Tuple]],
         retain_buffer=True,
+        initialization="kaiming",
     ):
         super().__init__()
         full_node_list = []
@@ -35,6 +37,41 @@ class LeibNet(Module):
         self.nodes_dict = torch.nn.ModuleDict({node.id: node for node in nodes})
         self.graph = nx.DiGraph()
         self.assemble(outputs)
+        self.initialization = initialization
+        if initialization == "kaiming":
+            self.apply(
+                lambda m: (
+                    torch.nn.init.kaiming_normal_(m.weight, mode="fan_out")
+                    if isinstance(m, torch.nn.Conv2d)
+                    or isinstance(m, torch.nn.Conv3d)
+                    or isinstance(m, Conv4d)
+                    else None
+                )
+            )
+        elif initialization == "xavier":
+            self.apply(
+                lambda m: (
+                    torch.nn.init.xavier_normal_(m.weight)
+                    if isinstance(m, torch.nn.Conv2d)
+                    or isinstance(m, torch.nn.Conv3d)
+                    or isinstance(m, Conv4d)
+                    else None
+                )
+            )
+        elif initialization == "orthogonal":
+            self.apply(
+                lambda m: (
+                    torch.nn.init.orthogonal_(m.weight)
+                    if isinstance(m, torch.nn.Conv2d)
+                    or isinstance(m, torch.nn.Conv3d)
+                    or isinstance(m, Conv4d)
+                    else None
+                )
+            )
+        elif initialization is None:
+            pass
+        else:
+            raise ValueError(f"Unknown initialization {initialization}")
         self.retain_buffer = retain_buffer
         self.retain_buffer = True
         if torch.cuda.is_available():
