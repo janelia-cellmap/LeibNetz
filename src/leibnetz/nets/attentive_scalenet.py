@@ -19,6 +19,9 @@ def build_subnet(
     output_nc=1,
     base_nc=12,
     nc_increase_factor=2,
+    norm_layer=None,
+    residual=False,
+    dropout_prob=None,
 ):
     # define downsample nodes
     downsample_factors = np.array(downsample_factors)
@@ -36,6 +39,9 @@ def build_subnet(
                 base_nc * nc_increase_factor**i,
                 kernel_sizes,
                 identifier=output_key,
+                norm_layer=norm_layer,
+                residual=residual,
+                dropout_prob=dropout_prob,
             ),
         )
         c += 1
@@ -67,6 +73,9 @@ def build_subnet(
             base_nc * nc_increase_factor ** (i + 1),
             kernel_sizes,
             identifier=output_key,
+            norm_layer=norm_layer,
+            residual=residual,
+            dropout_prob=dropout_prob,
         )
     )
     input_key = output_key
@@ -108,6 +117,9 @@ def build_subnet(
                 base_nc * nc_increase_factor**i,
                 kernel_sizes,
                 identifier=output_key,
+                norm_layer=norm_layer,
+                residual=residual,
+                dropout_prob=dropout_prob,
             )
         )
         input_key = output_key
@@ -122,6 +134,9 @@ def build_subnet(
             # kernel_sizes,
             [(1,) * len(top_resolution)],
             identifier=f"{subnet_id}_output",
+            norm_layer=norm_layer,
+            residual=residual,
+            dropout_prob=dropout_prob,
         )
     )
     outputs = {
