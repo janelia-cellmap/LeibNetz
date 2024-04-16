@@ -11,6 +11,7 @@ Please reference the following paper if you use this code:
 }
 """
 
+# %%
 import logging
 from abc import ABC, abstractmethod
 import torch
@@ -37,13 +38,13 @@ class HebbsRule(LearningRule):
         super().__init__()
         self.c = c
 
-    def update(self, inputs, w):
+    def update(self, inputs: torch.Tensor, weights: torch.Tensor):
         # TODO: Needs re-implementation
         d_ws = torch.zeros(inputs.size(0))
         for idx, x in enumerate(inputs):
-            y = torch.dot(w, x)
+            y = torch.dot(weights, x)
 
-            d_w = torch.zeros(w.shape)
+            d_w = torch.zeros(weights.shape)
             for i in range(y.shape[0]):
                 for j in range(x.shape[0]):
                     d_w[i, j] = self.c * x[j] * y[i]
@@ -73,10 +74,9 @@ class KrotovsRule(LearningRule):
         self.k = k
         self.normalize = normalize
 
-    def init_layers(self, layers: list):
-        for layer in [lyr.layer for lyr in layers]:
-            if type(layer) == torch.nn.Linear or type(layer) == torch.nn.Conv2d:
-                layer.weight.data.normal_(mean=0.0, std=1.0)
+    def init_layers(self, layer):
+        if hasattr(layer, "weight"):
+            layer.weight.data.normal_(mean=0.0, std=1.0)
 
     def update(self, inputs: torch.Tensor, weights: torch.Tensor):
         batch_size = inputs.shape[0]
@@ -103,7 +103,7 @@ class KrotovsRule(LearningRule):
         _, indices = torch.topk(tot_input, k=self.k, dim=0)
 
         # Apply the activation function for each input sample
-        activations = torch.zeros((num_hidden_units, batch_size))
+        activations = torch.zeros((num_hidden_units, batch_size), device=weights.device)
         activations[indices[0], torch.arange(batch_size)] = 1.0
         activations[indices[self.k - 1], torch.arange(batch_size)] = -self.delta
 
@@ -131,37 +131,125 @@ class OjasRule(LearningRule):
         super().__init__()
         self.c = c
 
-    def update(self, inputs, w):
+    def update(self, inputs: torch.Tensor, weights: torch.Tensor):
         # TODO: needs re-implementation
-        d_ws = torch.zeros(inputs.size(0), *w.shape)
+        d_ws = torch.zeros(inputs.size(0), *weights.shape)
         for idx, x in enumerate(inputs):
-            y = torch.mm(w, x.unsqueeze(1))
+            y = torch.mm(weights, x.unsqueeze(1))
 
-            d_w = torch.zeros(w.shape)
+            d_w = torch.zeros(weights.shape)
             for i in range(y.shape[0]):
                 for j in range(x.shape[0]):
-                    d_w[i, j] = self.c * y[i] * (x[j] - y[i] * w[i, j])
+                    d_w[i, j] = self.c * y[i] * (x[j] - y[i] * weights[i, j])
 
             d_ws[idx] = d_w
 
         return torch.mean(d_ws, dim=0)
 
 
-def convert_to_bio(model: LeibNet, learning_rule: LearningRule, **kwargs):
+def extract_image_patches(x, kernel_size, stride, dilation, padding=0):
+    # TODO: implement dilation and padding
+    #   does the order in which the patches are returned matter?
+    # [b, c, h, w] OR [b, c, d, h, w] OR [b, c, t, d, h, w]
+
+    # Extract patches
+    d = 2
+    patches = x
+    for k, s in zip(kernel_size, stride):
+        patches = patches.unfold(d, k, s)
+        d += 1
+
+    if len(kernel_size) == 2:
+        patches = patches.permute(0, 4, 5, 1, 2, 3).contiguous()
+    if len(kernel_size) == 3:
+        # TODO: Not sure if this is right
+        patches = patches.permute(0, 5, 6, 7, 1, 2, 3, 4).contiguous()
+    elif len(kernel_size) == 4:
+        patches = patches.permute(0, 6, 7, 8, 9, 1, 2, 3, 4, 5).contiguous()
+
+    return patches.view(-1, *kernel_size)
+
+
+def convert_to_bio(
+    model: LeibNet, learning_rule: LearningRule, learning_rate=1.0, init_layers=True
+):
     """Converts a LeibNet model to use local bio-inspired learning rules.
 
     Args:
         model (LeibNet): Initial LeibNet model to convert.
         learning_rule (LearningRule): Learning rule to apply to the model. Can be `HebbsRule`, `KrotovsRule` or `OjasRule`.
+        learning_rate (float, optional): Learning rate for the learning rule. Defaults to 1.0.
+        init_layers (bool, optional): Whether to initialize the model's layers. Defaults to True. This will discard existing weights.
 
     Returns:
-        _type_: _description_
+        LeibNet: Model with local learning rules applied in forward hooks.
     """
 
-    def hook(module, args, kwargs, output): ...
+    def hook(module, args, kwargs, output):
+        if module.training:
+            with torch.no_grad():
+                if hasattr(module, "kernel_size"):
+                    # Extract patches for convolutional layers
+                    inputs = extract_image_patches(
+                        args[0], module.kernel_size, module.stride, module.dilation
+                    )
+                    weights = module.weight.view(
+                        -1, torch.prod(torch.as_tensor(module.kernel_size))
+                    )
+                else:
+                    inputs = args[0]
+                    weights = module.weight
+                inputs = inputs.view(inputs.size(0), -1)
+                d_w = learning_rule.update(inputs, weights)
+                d_w = d_w.view(module.weight.size())
+                module.weight.data += d_w * learning_rate
 
+    hooks = []
     for module in model.modules():
-        if len(module._parameters) > 0:
-            module.register_forward_hook(hook, with_kwargs=True)
+        if hasattr(module, "weight"):
+            hooks.append(module.register_forward_hook(hook, with_kwargs=True))
+            module.weight.requires_grad = False
+            if init_layers:
+                learning_rule.init_layers(module)
+
+    setattr(model, "learning_rule", learning_rule)
+    setattr(model, "learning_rate", learning_rate)
+    setattr(model, "learning_hooks", hooks)
 
     return model
+
+
+def convert_to_backprop(model: LeibNet):
+    """Converts a LeibNet model to use backpropagation for training.
+
+    Args:
+        model (LeibNet): Initial LeibNet model to convert.
+
+    Returns:
+        LeibNet: Model with backpropagation applied in forward hooks.
+    """
+
+    for module in model.modules():
+        if hasattr(module, "weight"):
+            module.weight.requires_grad = True
+
+    try:
+        for hook in model.learning_hooks:
+            hook.remove()
+    except AttributeError:
+        UserWarning(
+            "Model does not have learning hooks. It is already using backpropagation."
+        )
+
+    return model
+
+
+# %%
+from leibnetz.nets import build_unet as leibnetz_unet
+
+model = convert_to_bio(leibnetz_unet(), KrotovsRule(), learning_rate=0.1)
+inputs = model.get_example_inputs(device="cuda")
+model = model.to("cuda")
+# %%
+outputs = model(inputs)
+# %%
