@@ -23,4 +23,4 @@ jobs:
         run: |
           pip install .
           pip install --upgrade mypy
-          mypy dacapo
+          mypy src

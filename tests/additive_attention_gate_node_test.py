@@ -2,6 +2,8 @@ import unittest
 import torch
 import numpy as np
 
+from leibnetz.nodes import AdditiveAttentionGateNode
+
 
 class TestAdditiveAttentionGateNode(unittest.TestCase):
     def setUp(self):

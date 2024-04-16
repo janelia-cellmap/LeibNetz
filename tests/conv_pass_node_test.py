@@ -11,7 +11,7 @@ class TestConvPassNode(unittest.TestCase):
             output_keys=["output"],
             input_nc=3,
             output_nc=3,
-            kernel_sizes=[3, 3, 3],
+            kernel_sizes=[[3, 3, 3]],
             identifier="test",
         )
         self.inputs = {"input": torch.randn(1, 3, 10, 10, 10)}
