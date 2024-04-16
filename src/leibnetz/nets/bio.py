@@ -245,11 +245,3 @@ def convert_to_backprop(model: LeibNet):
 
 
 # %%
-from leibnetz.nets import build_unet as leibnetz_unet
-
-model = convert_to_bio(leibnetz_unet(), KrotovsRule(), learning_rate=0.1)
-inputs = model.get_example_inputs(device="cuda")
-model = model.to("cuda")
-# %%
-outputs = model(inputs)
-# %%
