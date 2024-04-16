@@ -20,6 +20,7 @@ class ConvPassNode(Node):
         residual=False,  # TODO: Breaks with residual=True
         padding_mode="reflect",
         norm_layer=None,
+        dropout_prob=None,
         identifier=None,
     ) -> None:
         super().__init__(input_keys, output_keys, identifier)
@@ -33,6 +34,7 @@ class ConvPassNode(Node):
         self.residual = residual
         self.padding_mode = padding_mode
         self.norm_layer = norm_layer
+        self.dropout_prob = dropout_prob
         self.model = ConvPass(
             input_nc,
             output_nc,
@@ -42,6 +44,7 @@ class ConvPassNode(Node):
             residual=residual,
             padding_mode=padding_mode,
             norm_layer=norm_layer,
+            dropout_prob=dropout_prob,
         )
         self.color = "#00FF00"
         self._convolution_crop = None

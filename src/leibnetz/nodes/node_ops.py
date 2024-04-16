@@ -14,6 +14,7 @@ class ConvPass(nn.Module):
         residual=False,
         padding_mode="reflect",
         norm_layer=None,
+        dropout_prob=None,
     ):
         """Convolution pass block
 
@@ -26,6 +27,7 @@ class ConvPass(nn.Module):
             residual (bool, optional): Whether to make the blocks calculate the residual. Defaults to False.
             padding_mode (str, optional): What values to use in padding (i.e. 'zeros', 'reflect', 'wrap', etc.). Defaults to 'reflect'.
             norm_layer (callable or None, optional): Whether to use a normalization layer and if so (i.e. if not None), the layer to use. Defaults to None.
+            dropout_prob (float, optional): Dropout probability. Defaults to None.
 
         Returns:
             ConvPass: Convolution block
@@ -44,6 +46,7 @@ class ConvPass(nn.Module):
         self.padding = padding
         self.padding_mode = padding_mode
         self.norm_layer = norm_layer
+        self.dropout_prob = dropout_prob
         if isinstance(norm_layer, str):
             try:
                 if norm_layer == "batch":
@@ -76,6 +79,9 @@ class ConvPass(nn.Module):
                 layers.append(norm_layer(input_nc))
 
             layers.append(self.activation)
+
+            if dropout_prob is not None and dropout_prob > 0:
+                layers.append(nn.Dropout(dropout_prob))
 
             self.dims = len(kernel_size)
 
