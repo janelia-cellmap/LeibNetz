@@ -27,6 +27,9 @@ class LearningRule(ABC):
     def init_layers(self, model):
         pass
 
+    def __str__(self):
+        return self.__class__.__name__
+
     @abstractmethod
     def update(self, x, w):
         pass
@@ -37,6 +40,9 @@ class HebbsRule(LearningRule):
     def __init__(self, c=0.1):
         super().__init__()
         self.c = c
+
+    def __str__(self):
+        return f"HebbsRule(c={self.c})"
 
     def update(self, inputs: torch.Tensor, weights: torch.Tensor):
         # TODO: Needs re-implementation
@@ -73,6 +79,9 @@ class KrotovsRule(LearningRule):
         self.norm = norm
         self.k = k
         self.normalize = normalize
+
+    def __str__(self):
+        return f"KrotovsRule(precision={self.precision}, delta={self.delta}, norm={self.norm}, k={self.k})"
 
     def init_layers(self, layer):
         if hasattr(layer, "weight"):
@@ -130,6 +139,9 @@ class OjasRule(LearningRule):
     def __init__(self, c=0.1):
         super().__init__()
         self.c = c
+
+    def __str__(self):
+        return f"OjasRule(c={self.c})"
 
     def update(self, inputs: torch.Tensor, weights: torch.Tensor):
         # TODO: needs re-implementation
@@ -242,6 +254,3 @@ def convert_to_backprop(model: LeibNet):
         )
 
     return model
-
-
-# %%

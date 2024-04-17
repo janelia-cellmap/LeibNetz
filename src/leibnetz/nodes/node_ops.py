@@ -75,6 +75,7 @@ class ConvPass(nn.Module):
         layers = []
 
         for i, kernel_size in enumerate(kernel_sizes):
+            # TODO: Use of BatchNorm does not work with bio-inspired learning rules
             if norm_layer is not None:
                 layers.append(norm_layer(input_nc))
 

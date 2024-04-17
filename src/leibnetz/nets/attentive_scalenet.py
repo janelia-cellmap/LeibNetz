@@ -166,7 +166,7 @@ def build_attentive_scale_net(subnet_dict_list: list[dict]):
         output = subnet_outputs.pop(f"{subnet_id}_output")
         outputs[f"{subnet_id}_output"] = output
         bottleneck_input_dict = subnet_outputs
-    network = LeibNet(nodes, outputs=outputs)
+    network = LeibNet(nodes, outputs=outputs, name="AttentiveScaleNet")
     return network
 
 

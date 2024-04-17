@@ -21,6 +21,7 @@ class LeibNet(Module):
         outputs: dict[str, Sequence[Tuple]],
         retain_buffer=True,
         initialization="kaiming",
+        name="LeibNet",
     ):
         super().__init__()
         full_node_list = []
@@ -80,6 +81,8 @@ class LeibNet(Module):
             self.mps()
         else:
             self.cpu()
+
+        self.name = name
 
     def assemble(self, outputs: dict[str, Sequence[Tuple]]):
         """

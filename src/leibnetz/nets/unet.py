@@ -114,7 +114,9 @@ def build_unet(
 
     # define network
     network = LeibNet(
-        nodes, outputs={"output": [tuple(np.ones(len(top_resolution))), top_resolution]}
+        nodes,
+        outputs={"output": [tuple(np.ones(len(top_resolution))), top_resolution]},
+        name="UNet",
     )
 
     return network
