@@ -72,16 +72,19 @@ class KrotovsRule(LearningRule):
         k: Ranking parameter
     """
 
-    def __init__(self, precision=1e-30, delta=0.4, norm=2, k=2, normalize=False):
+    def __init__(
+        self, k_ratio=0.5, delta=0.4, norm=2, normalize=False, precision=1e-30
+    ):
         super().__init__()
         self.precision = precision
         self.delta = delta
         self.norm = norm
-        self.k = k
+        assert k_ratio <= 1, "k_ratio should be smaller or equal to 1"
+        self.k_ratio = k_ratio
         self.normalize = normalize
 
     def __str__(self):
-        return f"KrotovsRule(precision={self.precision}, delta={self.delta}, norm={self.norm}, k={self.k})"
+        return f"KrotovsRule(k_ratio={self.k_ratio}, delta={self.delta}, norm={self.norm}, normalize={self.normalize})"
 
     def init_layers(self, layer):
         if hasattr(layer, "weight"):
@@ -91,9 +94,7 @@ class KrotovsRule(LearningRule):
         batch_size = inputs.shape[0]
         num_hidden_units = weights.shape[0]
         input_size = inputs[0].shape[0]
-        assert (
-            self.k <= num_hidden_units
-        ), "The amount of hidden units should be larger or equal to k!"
+        k = int(self.k_ratio * num_hidden_units)
 
         # TODO: WIP
         if self.normalize:
@@ -109,12 +110,12 @@ class KrotovsRule(LearningRule):
         )
 
         # Get the top k activations for each input sample (hidden units ranked per input sample)
-        _, indices = torch.topk(tot_input, k=self.k, dim=0)
+        _, indices = torch.topk(tot_input, k=k, dim=0)
 
         # Apply the activation function for each input sample
         activations = torch.zeros((num_hidden_units, batch_size), device=weights.device)
         activations[indices[0], torch.arange(batch_size)] = 1.0
-        activations[indices[self.k - 1], torch.arange(batch_size)] = -self.delta
+        activations[indices[k - 1], torch.arange(batch_size)] = -self.delta
 
         # Sum the activations for each hidden unit, the batch dimension is removed here
         xx = torch.sum(torch.mul(activations, tot_input), 1)

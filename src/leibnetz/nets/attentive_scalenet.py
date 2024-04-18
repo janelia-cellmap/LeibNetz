@@ -180,6 +180,8 @@ def testing():
     # leibnet.array_shapes
     # %%
     inputs = leibnet.get_example_inputs()
+    for key, val in inputs.items():
+        print(f"{key}: {val.shape}")
     outputs = leibnet(inputs)
     # %%
     for key, val in outputs.items():
