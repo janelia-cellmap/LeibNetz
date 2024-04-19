@@ -374,6 +374,14 @@ class LeibNet(Module):
     def array_shapes(self):
         return self._get_shapes(self._array_shapes)
 
+    @property
+    def param_num(self):
+        param_num = 0
+        for key, val in self.named_parameters():
+            # print(f"{key}: {val.shape}")
+            param_num += val.numel()
+        return param_num
+
     def mps(self):
         if torch.backends.mps.is_available():
             self.to("mps")

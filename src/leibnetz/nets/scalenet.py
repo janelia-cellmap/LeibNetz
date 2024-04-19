@@ -132,7 +132,12 @@ def build_subnet(
 
 
 # %%
-def build_scale_net(subnet_dict_list: list[dict]):
+def build_scale_net(
+    subnet_dict_list: list[dict] = [
+        {"top_resolution": (32, 32, 32)},
+        {"top_resolution": (8, 8, 8)},
+    ]
+):
     nodes = []
     outputs = {}
     bottleneck_input_dict = None
@@ -158,6 +163,10 @@ def testing():
         {"top_resolution": (8, 8, 8)},
     ]
     scalenet = build_scale_net(subnet_dict_list)
+    param_num = 0
+    for key, val in scalenet.named_parameters():
+        print(f"{key}: {val.shape}")
+        param_num += val.numel()
     scalenet.array_shapes
     # %%
     inputs = scalenet.get_example_inputs()

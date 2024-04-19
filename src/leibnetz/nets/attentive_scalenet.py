@@ -151,7 +151,12 @@ def build_subnet(
 
 
 # %%
-def build_attentive_scale_net(subnet_dict_list: list[dict]):
+def build_attentive_scale_net(
+    subnet_dict_list: list[dict] = [
+        {"top_resolution": (32, 32, 32)},
+        {"top_resolution": (8, 8, 8)},
+    ]
+):
     nodes = []
     outputs = {}
     bottleneck_input_dict = None

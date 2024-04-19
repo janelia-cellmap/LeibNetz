@@ -79,8 +79,6 @@ class ConvPass(nn.Module):
             if norm_layer is not None:
                 layers.append(norm_layer(input_nc))
 
-            layers.append(self.activation)
-
             if dropout_prob is not None and dropout_prob > 0:
                 layers.append(nn.Dropout(dropout_prob))
 
@@ -112,6 +110,9 @@ class ConvPass(nn.Module):
                         bias=False,
                         groups=groups,
                     )
+                else:
+                    layers.append(self.activation)
+
             except KeyError:
                 raise RuntimeError("%dD convolution not implemented" % self.dims)
 
@@ -139,4 +140,4 @@ class ConvPass(nn.Module):
                 init_x = self.crop(self.x_init_map(x), res.size()[-self.dims :])
             else:
                 init_x = self.x_init_map(x)
-            return res + init_x
+            return self.activation(res + init_x)

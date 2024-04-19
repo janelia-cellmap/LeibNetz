@@ -5,6 +5,7 @@ from leibnetz.nodes import Node
 from leibnetz.nodes.node_ops import ConvPass
 
 
+# TODO: Not 2D compatible
 class AdditiveAttentionGateNode(Node):
     def __init__(
         self,
