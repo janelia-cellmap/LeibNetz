@@ -97,10 +97,12 @@ class ConvPass(nn.Module):
                     )
                 )
                 if residual and i == 0:
-                    if input_nc < output_nc:
+                    if input_nc < output_nc and output_nc % input_nc == 0:
                         groups = input_nc
-                    else:
+                    elif input_nc % output_nc == 0:
                         groups = output_nc
+                    else:
+                        groups = 1
                     self.x_init_map = conv(
                         input_nc,
                         output_nc,

@@ -17,7 +17,7 @@ class ConvPassNode(Node):
         output_key_channels=None,
         activation="ReLU",
         padding="valid",
-        residual=False,  # TODO: Breaks with residual=True
+        residual=False,
         padding_mode="reflect",
         norm_layer=None,
         dropout_prob=None,
