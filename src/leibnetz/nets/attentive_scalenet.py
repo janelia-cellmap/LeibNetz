@@ -103,6 +103,7 @@ def build_subnet(
                 gating_nc=base_nc * nc_increase_factor ** (i + 1),
                 input_nc=base_nc * nc_increase_factor**i,
                 identifier=output_key,
+                ndims=len(kernel_sizes[0]),
             )
         )
         input_key = output_key
