@@ -394,7 +394,7 @@ class LeibNet(Module):
         # outputs is a dictionary of tensors
 
         # initialize buffer
-        self.buffer = inputs
+        self.buffer = {key: inputs[key] for key in self.input_keys}
 
         # march along nodes based on graph succession
         for flushable_list, node in zip(self.flushable_arrays, self.ordered_nodes):
