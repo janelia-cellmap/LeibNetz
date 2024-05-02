@@ -19,7 +19,7 @@ class LeibNet(Module):
         self,
         nodes: Iterable,
         outputs: dict[str, Sequence[Tuple]],
-        retain_buffer=True,
+        # retain_buffer=True,
         initialization="kaiming",
         name="LeibNet",
     ):
@@ -73,7 +73,7 @@ class LeibNet(Module):
             pass
         else:
             raise ValueError(f"Unknown initialization {initialization}")
-        self.retain_buffer = retain_buffer
+        # self.retain_buffer = retain_buffer
         self.retain_buffer = True
         if torch.cuda.is_available():
             self.cuda()

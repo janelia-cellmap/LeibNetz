@@ -15,6 +15,7 @@ def build_unet(
     norm_layer=None,
     residual=False,
     dropout_prob=None,
+    activation="ReLU",
 ):
     # define downsample nodes
     downsample_factors = np.array(downsample_factors)
@@ -34,6 +35,7 @@ def build_unet(
                 norm_layer=norm_layer,
                 residual=residual,
                 dropout_prob=dropout_prob,
+                activation=activation,
             ),
         )
         c += 1
@@ -62,6 +64,7 @@ def build_unet(
             norm_layer=norm_layer,
             residual=residual,
             dropout_prob=dropout_prob,
+            activation=activation,
         )
     )
     input_key = output_key
@@ -92,6 +95,7 @@ def build_unet(
                 norm_layer=norm_layer,
                 residual=residual,
                 dropout_prob=dropout_prob,
+                activation=activation,
             )
         )
         input_key = output_key
@@ -109,6 +113,7 @@ def build_unet(
             norm_layer=norm_layer,  # TODO: remove?
             residual=residual,
             dropout_prob=dropout_prob,
+            activation=activation,
         )
     )
 
