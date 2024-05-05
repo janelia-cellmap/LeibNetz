@@ -16,6 +16,7 @@ class ConvPassNode(Node):
         kernel_sizes,
         output_key_channels=None,
         activation="ReLU",
+        final_activation=None,
         padding="valid",
         residual=False,
         padding_mode="reflect",
@@ -30,6 +31,7 @@ class ConvPassNode(Node):
         self.output_nc = output_nc
         self.kernel_sizes = kernel_sizes
         self.activation = activation
+        self.final_activation = final_activation
         self.padding = padding
         self.residual = residual
         self.padding_mode = padding_mode
@@ -40,6 +42,7 @@ class ConvPassNode(Node):
             output_nc,
             kernel_sizes,
             activation=activation,
+            final_activation=final_activation,
             padding=padding,
             residual=residual,
             padding_mode=padding_mode,

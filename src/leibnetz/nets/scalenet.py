@@ -19,6 +19,7 @@ def build_subnet(
     residual=False,
     dropout_prob=None,
     activation="ReLU",
+    final_activation="Sigmoid",
 ):
     # define downsample nodes
     downsample_factors = np.array(downsample_factors)
@@ -123,6 +124,7 @@ def build_subnet(
             residual=residual,
             dropout_prob=dropout_prob,
             activation=activation,
+            final_activation=final_activation,
         )
     )
     outputs = {

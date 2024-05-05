@@ -10,6 +10,7 @@ class ConvPass(nn.Module):
         output_nc,
         kernel_sizes,
         activation="ReLU",
+        final_activation=None,
         padding="valid",
         residual=False,
         padding_mode="reflect",
@@ -23,6 +24,7 @@ class ConvPass(nn.Module):
             output_nc (int): Number of output channels
             kernel_sizes (list(int) or array_like): Kernel sizes for convolution layers.
             activation (str or callable): Name of activation function in 'nn' or the function itself.
+            final_activation (str or callable, optional): Name of activation function in 'nn' or the function itself, to be applied to final output values only. Defaults to the same as activation.
             padding (str, optional): What type of padding to use in convolutions. Defaults to 'valid'.
             residual (bool, optional): Whether to make the blocks calculate the residual. Defaults to False.
             padding_mode (str, optional): What values to use in padding (i.e. 'zeros', 'reflect', 'wrap', etc.). Defaults to 'reflect'.
@@ -41,6 +43,14 @@ class ConvPass(nn.Module):
                 self.activation = activation()  # assume is function
         else:
             self.activation = nn.Identity()
+
+        if final_activation is not None:
+            if isinstance(final_activation, str):
+                self.final_activation = getattr(nn, final_activation)()
+            else:
+                self.final_activation = final_activation()  # assume is function
+        else:
+            self.final_activation = self.activation
 
         self.residual = residual
         self.padding = padding
@@ -84,39 +94,40 @@ class ConvPass(nn.Module):
 
             self.dims = len(kernel_size)
 
-            conv = {2: nn.Conv2d, 3: nn.Conv3d, 4: Conv4d}[self.dims]
-
             try:
-                layers.append(
-                    conv(
-                        input_nc,
-                        output_nc,
-                        kernel_size,
-                        padding=padding,
-                        padding_mode=padding_mode,
-                    )
-                )
-                if residual and i == 0:
-                    if input_nc < output_nc and output_nc % input_nc == 0:
-                        groups = input_nc
-                    elif input_nc % output_nc == 0:
-                        groups = output_nc
-                    else:
-                        groups = 1
-                    self.x_init_map = conv(
-                        input_nc,
-                        output_nc,
-                        np.ones(self.dims, dtype=int),
-                        padding=padding,
-                        padding_mode=padding_mode,
-                        bias=False,
-                        groups=groups,
-                    )
-                else:
-                    layers.append(self.activation)
-
+                conv = {2: nn.Conv2d, 3: nn.Conv3d, 4: Conv4d}[self.dims]
             except KeyError:
-                raise RuntimeError("%dD convolution not implemented" % self.dims)
+                raise ValueError(
+                    f"Only 2D, 3D and 4D convolutions are supported, not {self.dims}D"
+                )
+
+            layers.append(
+                conv(
+                    input_nc,
+                    output_nc,
+                    kernel_size,
+                    padding=padding,
+                    padding_mode=padding_mode,
+                )
+            )
+            if residual and i == 0:
+                if input_nc < output_nc and output_nc % input_nc == 0:
+                    groups = input_nc
+                elif input_nc % output_nc == 0:
+                    groups = output_nc
+                else:
+                    groups = 1
+                self.x_init_map = conv(
+                    input_nc,
+                    output_nc,
+                    np.ones(self.dims, dtype=int),
+                    padding=padding,
+                    padding_mode=padding_mode,
+                    bias=False,
+                    groups=groups,
+                )
+            elif i < len(kernel_sizes) - 1:
+                layers.append(self.activation)
 
             input_nc = output_nc
 
@@ -135,11 +146,12 @@ class ConvPass(nn.Module):
 
     def forward(self, x):
         if not self.residual:
-            return self.conv_pass(x)
+            x = self.conv_pass(x)
+            return self.final_activation(x)
         else:
             res = self.conv_pass(x)
             if self.padding.lower() == "valid":
                 init_x = self.crop(self.x_init_map(x), res.size()[-self.dims :])
             else:
                 init_x = self.x_init_map(x)
-            return self.activation(res + init_x)
+            return self.final_activation(res + init_x)
