@@ -124,18 +124,18 @@ class AdditiveAttentionGateNode(Node):
         g1 = self.W_g(g)
         x1 = self.W_x(x)
         # change it to crop
-        if np.all(x1.shape[-self.ndims :] != g1.shape[-self.ndims :]):
-            smallest_shape = np.min(
-                [x1.shape[-self.ndims :], g1.shape[-self.ndims :]], axis=0
-            )
-            assert len(smallest_shape) == self.ndims, (
-                f"Input shapes {[x1.shape,g1.shape]} have wrong dimensionality for node {self.id}, "
-                f"with expected inputs {self.input_keys} of dimensionality {self.ndims}"
-            )
-            if np.all(x1.shape[-self.ndims :] != smallest_shape):
-                x1 = self.crop(x1, smallest_shape)
-            if np.all(g1.shape[-self.ndims :] != smallest_shape):
-                g1 = self.crop(g1, smallest_shape)
+        # if np.all(x1.shape[-self.ndims :] != g1.shape[-self.ndims :]):
+        smallest_shape = np.min(
+            [x1.shape[-self.ndims :], g1.shape[-self.ndims :]], axis=0
+        )
+        assert len(smallest_shape) == self.ndims, (
+            f"Input shapes {[x1.shape,g1.shape]} have wrong dimensionality for node {self.id}, "
+            f"with expected inputs {self.input_keys} of dimensionality {self.ndims}"
+        )
+        # if np.all(x1.shape[-self.ndims :] != smallest_shape):
+        x1 = self.crop(x1, smallest_shape)
+        # if np.all(g1.shape[-self.ndims :] != smallest_shape):
+        g1 = self.crop(g1, smallest_shape)
         psi = torch.nn.functional.relu(g1 + x1)
         psi = self.psi(psi)
         psi = torch.nn.functional.softmax(psi, dim=1)
@@ -188,17 +188,10 @@ class AdditiveAttentionGateNode(Node):
         return (spatial_shape - target_spatial_shape) / self.scale
 
     def crop_to_factor(self, x):  # TODO
-        shape = x.size()
-        shape = shape[-self.ndims :]
+        shape = x.shape[-self.ndims :]
         target_shape = shape - self.factor_crop(shape)
-        if (target_shape != shape).all():
-            assert all(((t > c) for t, c in zip(target_shape, self.resample_crop))), (
-                "Feature map with shape %s is too small to ensure "
-                "translation equivariance with self.least_common_scale %s and following "
-                "resamples %s" % (x.size(), self.least_common_scale, self.kernel_sizes)
-            )
-
-            return self.crop(x, target_shape.astype(int))
+        # if (target_shape != shape).all():
+        return self.crop(x, target_shape.astype(int))
 
         return x
 

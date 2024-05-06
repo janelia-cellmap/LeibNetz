@@ -315,6 +315,15 @@ class LeibNet(Module):
             == 0
         ).all()
 
+    def step_up_size(self, steps: int = 1):
+        for n in range(steps):
+            target_arrays = {}
+            for name, metadata in self.output_shapes.items():
+                target_arrays[name] = tuple(
+                    (tuple(s + 1 for s in metadata["shape"]), metadata["scale"])
+                )
+        self.compute_shapes(target_arrays, set=True)
+
     def step_valid_shapes(self, input_key):
         input_scale = self._input_shapes[input_key][1]
         step_size = self.least_common_scale / input_scale
