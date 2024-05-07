@@ -1,11 +1,12 @@
-from typing import Iterable, Optional, Sequence, Tuple, Union
+from typing import Iterable, Sequence, Tuple
 import networkx as nx
 from torch import device
 import torch
 from torch.nn import Module
 import numpy as np
 from leibnetz.nodes import Node
-from funlib.learn.torch.models.conv4d import Conv4d
+
+# from funlib.learn.torch.models.conv4d import Conv4d
 
 # from model_opt.apis import optimize
 
@@ -43,9 +44,8 @@ class LeibNet(Module):
             self.apply(
                 lambda m: (
                     torch.nn.init.kaiming_normal_(m.weight, mode="fan_out")
-                    if isinstance(m, torch.nn.Conv2d)
-                    or isinstance(m, torch.nn.Conv3d)
-                    or isinstance(m, Conv4d)
+                    if isinstance(m, torch.nn.Conv2d) or isinstance(m, torch.nn.Conv3d)
+                    # or isinstance(m, Conv4d)
                     else None
                 )
             )
@@ -53,9 +53,8 @@ class LeibNet(Module):
             self.apply(
                 lambda m: (
                     torch.nn.init.xavier_normal_(m.weight)
-                    if isinstance(m, torch.nn.Conv2d)
-                    or isinstance(m, torch.nn.Conv3d)
-                    or isinstance(m, Conv4d)
+                    if isinstance(m, torch.nn.Conv2d) or isinstance(m, torch.nn.Conv3d)
+                    # or isinstance(m, Conv4d)
                     else None
                 )
             )
@@ -63,9 +62,8 @@ class LeibNet(Module):
             self.apply(
                 lambda m: (
                     torch.nn.init.orthogonal_(m.weight)
-                    if isinstance(m, torch.nn.Conv2d)
-                    or isinstance(m, torch.nn.Conv3d)
-                    or isinstance(m, Conv4d)
+                    if isinstance(m, torch.nn.Conv2d) or isinstance(m, torch.nn.Conv3d)
+                    # or isinstance(m, Conv4d)
                     else None
                 )
             )

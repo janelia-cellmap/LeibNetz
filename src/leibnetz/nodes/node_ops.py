@@ -1,6 +1,7 @@
 from torch import nn
 import numpy as np
-from funlib.learn.torch.models.conv4d import Conv4d
+
+# from funlib.learn.torch.models.conv4d import Conv4d
 
 
 class ConvPass(nn.Module):
@@ -95,10 +96,13 @@ class ConvPass(nn.Module):
             self.dims = len(kernel_size)
 
             try:
-                conv = {2: nn.Conv2d, 3: nn.Conv3d, 4: Conv4d}[self.dims]
+                # TODO: Implement Conv4d
+                # conv = {2: nn.Conv2d, 3: nn.Conv3d, 4: Conv4d}[self.dims]
+                conv = {2: nn.Conv2d, 3: nn.Conv3d}[self.dims]
             except KeyError:
                 raise ValueError(
-                    f"Only 2D, 3D and 4D convolutions are supported, not {self.dims}D"
+                    # f"Only 2D, 3D and 4D convolutions are supported, not {self.dims}D"
+                    f"Only 2D and 3D convolutions are supported, not {self.dims}D"
                 )
 
             layers.append(
