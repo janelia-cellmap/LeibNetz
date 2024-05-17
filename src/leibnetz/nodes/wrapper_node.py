@@ -2,75 +2,30 @@ import math
 import numpy as np
 import torch
 from leibnetz.nodes import Node
-from leibnetz.nodes.node_ops import ConvPass
 
 
-# defines baseclass for all nodes in the network
-class ConvPassNode(Node):
-    def __init__(
-        self,
-        input_keys,
-        output_keys,
-        input_nc,
-        output_nc,
-        kernel_sizes,
-        output_key_channels=None,
-        activation="ReLU",
-        final_activation=None,
-        padding="valid",
-        residual=False,
-        padding_mode="reflect",
-        norm_layer=None,
-        dropout_prob=None,
-        identifier=None,
-    ) -> None:
+class WrapperNode(Node):
+    def __init__(self, model, input_keys, output_keys, identifier=None):
         super().__init__(input_keys, output_keys, identifier)
-        self.output_key_channels = output_key_channels
+        self.model = model
         self._type = __name__.split(".")[-1]
-        self.input_nc = input_nc
-        self.output_nc = output_nc
-        self.kernel_sizes = kernel_sizes
-        self.activation = activation
-        self.final_activation = final_activation
-        self.padding = padding
-        self.residual = residual
-        self.padding_mode = padding_mode
-        self.norm_layer = norm_layer
-        self.dropout_prob = dropout_prob
-        self.model = ConvPass(
-            input_nc,
-            output_nc,
-            kernel_sizes,
-            activation=activation,
-            final_activation=final_activation,
-            padding=padding,
-            residual=residual,
-            padding_mode=padding_mode,
-            norm_layer=norm_layer,
-            dropout_prob=dropout_prob,
-        )
-        self.color = "#00FF00"
+        self.color = "#FF0000"
 
-    def get_min_crops(self, inputs):
-        shapes = [
-            inputs[key].shape[-self.ndims :]
-            for key in self.input_keys
-            if inputs[key] is not None
-        ]
-        assert (
-            len(shapes) > 0
-        ), f"No inputs for node {self.id}, with expected inputs {self.input_keys}"
-        smallest_shape = np.min(shapes, axis=0)
-        # smallest_shape = torch.min(torch.as_tensor(shapes), dim=0)
-        assert len(smallest_shape) == self.ndims, (
-            f"Input shapes {shapes} have wrong dimensionality for node {self.id}, "
-            f"with expected inputs {self.input_keys} of dimensionality {self.ndims}"
-        )
-        for key in self.input_keys:
-            # NOTE: "if" omitted to allow torch tracing
-            # if any(inputs[key].shape[-self.ndims :] != smallest_shape):
-            inputs[key] = self.crop(inputs[key], smallest_shape)
-        return inputs
+    # the crop that will already be done due to the convolutions
+    @property
+    def convolution_crop(self):
+        if not hasattr(self, "_convolution_crop"):
+            lost_voxels = np.zeros(self.ndims, dtype=int)
+            for module in self.model.modules():
+                if hasattr(module, "padding") and module.padding == "same":
+                    continue
+                if hasattr(module, "kernel_size"):
+                    lost_voxels += np.array(module.kernel_size) - 1
+            assert (lost_voxels >= 0).all() & (
+                lost_voxels % 1 == 0
+            ).all(), f"Non-integer lost voxels {lost_voxels} at node {self.id}"
+            self._convolution_crop = lost_voxels
+        return self._convolution_crop
 
     def forward(self, inputs):
         # implement any parsing of input/output buffers here
@@ -94,21 +49,26 @@ class ConvPassNode(Node):
             outputs = [outputs]
         return {key: val for key, val in zip(self.output_keys, outputs)}
 
-    # the crop that will already be done due to the convolutions
-    @property
-    def convolution_crop(self):
-        if not hasattr(self, "_convolution_crop"):
-            lost_voxels = np.zeros(self.ndims, dtype=int)
-            for module in self.model.modules():
-                if hasattr(module, "padding") and module.padding == "same":
-                    continue
-                if hasattr(module, "kernel_size"):
-                    lost_voxels += np.array(module.kernel_size) - 1
-            assert (lost_voxels >= 0).all() & (
-                lost_voxels % 1 == 0
-            ).all(), f"Non-integer lost voxels {lost_voxels} at node {self.id}"
-            self._convolution_crop = lost_voxels
-        return self._convolution_crop
+    def get_min_crops(self, inputs):
+        shapes = [
+            inputs[key].shape[-self.ndims :]
+            for key in self.input_keys
+            if inputs[key] is not None
+        ]
+        assert (
+            len(shapes) > 0
+        ), f"No inputs for node {self.id}, with expected inputs {self.input_keys}"
+        smallest_shape = np.min(shapes, axis=0)
+        # smallest_shape = torch.min(torch.as_tensor(shapes), dim=0)
+        assert len(smallest_shape) == self.ndims, (
+            f"Input shapes {shapes} have wrong dimensionality for node {self.id}, "
+            f"with expected inputs {self.input_keys} of dimensionality {self.ndims}"
+        )
+        for key in self.input_keys:
+            # NOTE: "if" omitted to allow torch tracing
+            # if any(inputs[key].shape[-self.ndims :] != smallest_shape):
+            inputs[key] = self.crop(inputs[key], smallest_shape)
+        return inputs
 
     def get_input_from_output_shape(self, output_shape):
         input_shape = output_shape + self.convolution_crop
