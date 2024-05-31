@@ -18,6 +18,8 @@ def build_subnet(
     norm_layer=None,
     residual=False,
     dropout_prob=None,
+    squeeze_excitation=False,
+    squeeze_ratio=2,
     activation="ReLU",
     final_activation="Sigmoid",
 ):
@@ -39,6 +41,8 @@ def build_subnet(
                 norm_layer=norm_layer,
                 residual=residual,
                 dropout_prob=dropout_prob,
+                squeeze_excitation=squeeze_excitation,
+                squeeze_ratio=squeeze_ratio,
                 activation=activation,
             ),
         )
@@ -74,6 +78,8 @@ def build_subnet(
             norm_layer=norm_layer,
             residual=residual,
             dropout_prob=dropout_prob,
+            squeeze_excitation=squeeze_excitation,
+            squeeze_ratio=squeeze_ratio,
             activation=activation,
         )
     )
@@ -105,6 +111,8 @@ def build_subnet(
                 norm_layer=norm_layer,
                 residual=residual,
                 dropout_prob=dropout_prob,
+                squeeze_excitation=squeeze_excitation,
+                squeeze_ratio=squeeze_ratio,
                 activation=activation,
             )
         )
@@ -123,6 +131,8 @@ def build_subnet(
             norm_layer=norm_layer,
             residual=residual,
             dropout_prob=dropout_prob,
+            squeeze_excitation=squeeze_excitation,
+            squeeze_ratio=squeeze_ratio,
             activation=activation,
             final_activation=final_activation,
         )

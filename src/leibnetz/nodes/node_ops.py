@@ -137,7 +137,7 @@ class ConvPass(nn.Module):
                     raise ValueError(
                         f"Only 2D and 3D squeeze-and-excitation blocks are supported not {self.dims}D"
                     )
-                layers.append(se_layer(input_nc, input_nc // squeeze_ratio))
+                layers.append(se_layer(output_nc, output_nc // squeeze_ratio))
             if residual and i == 0:
                 if input_nc < output_nc and output_nc % input_nc == 0:
                     groups = input_nc
