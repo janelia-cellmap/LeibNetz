@@ -24,6 +24,8 @@ def build_subnet(
     dropout_prob=None,
     activation="ReLU",
     final_activation="Sigmoid",
+    squeeze_excitation=False,
+    squeeze_ratio=2,
 ):
     # define downsample nodes
     downsample_factors = np.array(downsample_factors)
@@ -44,6 +46,8 @@ def build_subnet(
                 norm_layer=norm_layer,
                 residual=residual,
                 dropout_prob=dropout_prob,
+                squeeze_excitation=squeeze_excitation,
+                squeeze_ratio=squeeze_ratio,
                 activation=activation,
             ),
         )
@@ -79,6 +83,8 @@ def build_subnet(
             norm_layer=norm_layer,
             residual=residual,
             dropout_prob=dropout_prob,
+            squeeze_excitation=squeeze_excitation,
+            squeeze_ratio=squeeze_ratio,
             activation=activation,
         )
     )
@@ -125,6 +131,8 @@ def build_subnet(
                 norm_layer=norm_layer,
                 residual=residual,
                 dropout_prob=dropout_prob,
+                squeeze_excitation=squeeze_excitation,
+                squeeze_ratio=squeeze_ratio,
                 activation=activation,
             )
         )
@@ -143,6 +151,8 @@ def build_subnet(
             norm_layer=norm_layer,
             residual=residual,
             dropout_prob=dropout_prob,
+            squeeze_excitation=squeeze_excitation,
+            squeeze_ratio=squeeze_ratio,
             activation=activation,
             final_activation=final_activation,
         )

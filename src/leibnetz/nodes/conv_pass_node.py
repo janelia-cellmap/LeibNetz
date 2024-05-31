@@ -22,6 +22,8 @@ class ConvPassNode(Node):
         padding_mode="reflect",
         norm_layer=None,
         dropout_prob=None,
+        squeeze_excitation=False,
+        squeeze_ratio=2,
         identifier=None,
     ) -> None:
         super().__init__(input_keys, output_keys, identifier)
@@ -37,6 +39,8 @@ class ConvPassNode(Node):
         self.padding_mode = padding_mode
         self.norm_layer = norm_layer
         self.dropout_prob = dropout_prob
+        self.squeeze_excitation = squeeze_excitation
+        self.squeeze_ratio = squeeze_ratio
         self.model = ConvPass(
             input_nc,
             output_nc,
@@ -48,6 +52,8 @@ class ConvPassNode(Node):
             padding_mode=padding_mode,
             norm_layer=norm_layer,
             dropout_prob=dropout_prob,
+            squeeze_excitation=squeeze_excitation,
+            squeeze_ratio=squeeze_ratio,
         )
         self.color = "#00FF00"
 
