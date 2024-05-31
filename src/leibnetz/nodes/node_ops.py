@@ -1,4 +1,6 @@
 from torch import nn
+
+# from torchvision.ops import DeformConv2d
 import numpy as np
 
 # from funlib.learn.torch.models.conv4d import Conv4d
@@ -17,6 +19,7 @@ class ConvPass(nn.Module):
         padding_mode="reflect",
         norm_layer=None,
         dropout_prob=None,
+        deformable=False,
     ):
         """Convolution pass block
 
@@ -31,6 +34,7 @@ class ConvPass(nn.Module):
             padding_mode (str, optional): What values to use in padding (i.e. 'zeros', 'reflect', 'wrap', etc.). Defaults to 'reflect'.
             norm_layer (callable or None, optional): Whether to use a normalization layer and if so (i.e. if not None), the layer to use. Defaults to None.
             dropout_prob (float, optional): Dropout probability. Defaults to None.
+            deformable (bool, optional): Whether to use deformable convolutions. Defaults to False.
 
         Returns:
             ConvPass: Convolution block
@@ -58,6 +62,7 @@ class ConvPass(nn.Module):
         self.padding_mode = padding_mode
         self.norm_layer = norm_layer
         self.dropout_prob = dropout_prob
+        self.deformable = deformable
         if isinstance(norm_layer, str):
             try:
                 if norm_layer == "batch":
@@ -98,11 +103,18 @@ class ConvPass(nn.Module):
             try:
                 # TODO: Implement Conv4d
                 # conv = {2: nn.Conv2d, 3: nn.Conv3d, 4: Conv4d}[self.dims]
-                conv = {2: nn.Conv2d, 3: nn.Conv3d}[self.dims]
+                if not self.deformable:
+                    conv = {2: nn.Conv2d, 3: nn.Conv3d}[self.dims]
+                else:
+                    raise NotImplementedError(
+                        "Deformable convolutions are not yet implemented."
+                    )
+                    # NOTE: See https://github.com/XinyiYing/D3Dnet/blob/master/code/dcn/modules/deform_conv.py
+                    # conv = DeformConv2d
             except KeyError:
                 raise ValueError(
                     # f"Only 2D, 3D and 4D convolutions are supported, not {self.dims}D"
-                    f"Only 2D and 3D convolutions are supported, not {self.dims}D"
+                    f"Only 2D and 3D convolutions are supported not {self.dims}D"
                 )
 
             layers.append(
