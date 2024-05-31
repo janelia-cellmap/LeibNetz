@@ -19,7 +19,7 @@ class ConvPass(nn.Module):
         padding_mode="reflect",
         norm_layer=None,
         dropout_prob=None,
-        deformable=False,
+        # deformable=False,
     ):
         """Convolution pass block
 
@@ -34,7 +34,7 @@ class ConvPass(nn.Module):
             padding_mode (str, optional): What values to use in padding (i.e. 'zeros', 'reflect', 'wrap', etc.). Defaults to 'reflect'.
             norm_layer (callable or None, optional): Whether to use a normalization layer and if so (i.e. if not None), the layer to use. Defaults to None.
             dropout_prob (float, optional): Dropout probability. Defaults to None.
-            deformable (bool, optional): Whether to use deformable convolutions. Defaults to False.
+            # deformable (bool, optional): Whether to use deformable convolutions. Defaults to False.
 
         Returns:
             ConvPass: Convolution block
