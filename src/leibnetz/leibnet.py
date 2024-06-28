@@ -553,5 +553,20 @@ class LeibNet(Module):
         return self.traced_model
 
     def optimize(self):
+        # from model_opt.apis import optimize
         self.optimized_model = optimize(self, self.get_example_inputs())
         return self.optimized_model
+
+    def __getitem__(self, key):
+        if not hasattr(self, "heads"):
+            return self.nodes_dict[key]
+        else:
+            return torch.nn.Sequential(self, self.heads[key])
+
+    def __setitem__(self, key, value):
+        self.add_head(value, key)
+
+    def add_head(self, head, key):
+        if not hasattr(self, "heads"):
+            self.heads = {}
+        self.heads[key] = head
