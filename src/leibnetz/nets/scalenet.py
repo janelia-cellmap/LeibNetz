@@ -15,6 +15,7 @@ def build_subnet(
     output_nc=1,
     base_nc=12,
     nc_increase_factor=2,
+    num_final_convs=1,
     norm_layer=None,
     residual=False,
     dropout_prob=None,
@@ -106,7 +107,8 @@ def build_subnet(
                 base_nc * nc_increase_factor**i
                 + base_nc * nc_increase_factor ** (i + 1),
                 base_nc * nc_increase_factor**i,
-                kernel_sizes,
+                # kernel_sizes,
+                [(1,) * len(top_resolution)] * num_final_convs,
                 identifier=output_key,
                 norm_layer=norm_layer,
                 residual=residual,
