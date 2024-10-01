@@ -73,12 +73,12 @@ class LeibNet(Module):
             raise ValueError(f"Unknown initialization {initialization}")
         # self.retain_buffer = retain_buffer
         self.retain_buffer = True
-        if torch.cuda.is_available():
-            self.cuda()
-        elif torch.backends.mps.is_available():
-            self.mps()
-        else:
-            self.cpu()
+        # if torch.cuda.is_available():
+        #     self.cuda()
+        # elif torch.backends.mps.is_available():
+        #     self.mps()
+        # else:
+        #     self.cpu()
 
         self.name = name
 
@@ -508,38 +508,6 @@ class LeibNet(Module):
         print(outstring)
         return outstring
 
-    def draw(self, type: str = "spiral", node_size: int = 1000, font_size: int = 8):
-        DeprecationWarning(
-            "This function is deprecated. See LeibNet.to_mermaid()."
-        )  # noqa
-        labels = {node: "\n".join(node.id.split("_")) for node in self.ordered_nodes}
-        colors = [node.color for node in self.ordered_nodes]
-        if type == "multipartite":
-            pos = nx.multipartite_layout(
-                self.graph, subset_key="scale", align="horizontal"
-            )
-        elif type == "spiral":
-            pos = nx.spiral_layout(self.graph, equidistant=True)
-        elif type == "kamada_kawai":
-            pos = nx.kamada_kawai_layout(self.graph)
-        elif type == "planar":
-            pos = nx.planar_layout(self.graph)
-        else:
-            pos = nx.planar_layout(self.graph)
-            pos = nx.kamada_kawai_layout(self.graph, pos=pos)
-
-        nx.draw_networkx(
-            self.graph,
-            pos=pos,
-            # with_labels=False,
-            labels=labels,
-            node_color=colors,
-            # font_color="white",
-            font_size=font_size,
-            node_size=node_size,
-            # node_shape="s"
-        )
-
     # TODO: Make fully traceable :/
     def trace(self, inputs: dict[str, torch.Tensor] = None):
         logger.warning(
@@ -552,10 +520,13 @@ class LeibNet(Module):
         )  # TODO: Verify strict=False works correctly
         return self.traced_model
 
-    def optimize(self):
-        # from model_opt.apis import optimize
-        self.optimized_model = optimize(self, self.get_example_inputs())
-        return self.optimized_model
+    # def optimize(self):
+    #     from model_opt.apis import optimize
+    #     self.optimized_model = optimize(self, self.get_example_inputs())
+    #     return self.optimized_model
+
+    def save(self, path: str):
+        torch.save(self, path)
 
     def __getitem__(self, key):
         if not hasattr(self, "heads"):

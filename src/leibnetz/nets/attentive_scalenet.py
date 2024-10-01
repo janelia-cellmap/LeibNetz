@@ -215,9 +215,15 @@ def testing():
     leibnet.to_mermaid()
     # %%
     leibnet.to_mermaid(separate_arrays=True)
+    leibnet.to(list(inputs.values())[0].device)
 
     # %%
     timer = Timer(lambda: leibnet(inputs))
     num, time = timer.autorange()
     print(f"Time per run: {time/num} seconds")
+
+    # %%
+    import torch
+
+    torch.onnx.dynamo_export(leibnet, inputs)
     return leibnet
