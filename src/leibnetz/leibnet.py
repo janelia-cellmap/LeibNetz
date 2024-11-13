@@ -528,6 +528,10 @@ class LeibNet(Module):
     def save(self, path: str):
         torch.save(self, path)
 
+    @staticmethod
+    def load(path: str):
+        return torch.load(path)
+
     def __getitem__(self, key):
         if not hasattr(self, "heads"):
             return self.nodes_dict[key]

@@ -6,8 +6,8 @@ import numpy as np
 
 def build_unet(
     top_resolution=(8, 8, 8),
-    downsample_factors=[(2, 2, 2), (2, 2, 2)],
-    kernel_sizes=[(3, 3, 3), (3, 3, 3), (3, 3, 3)],
+    downsample_factors=None,
+    kernel_sizes=None,
     input_nc=1,
     output_nc=1,
     base_nc=12,
@@ -18,6 +18,11 @@ def build_unet(
     activation="ReLU",
     final_activation="Sigmoid",
 ):
+    ndims = len(top_resolution)
+    if downsample_factors is None:
+        downsample_factors = [(2,) * ndims] * 2
+    if kernel_sizes is None:
+        kernel_sizes = [(3,) * ndims] * 3
     # define downsample nodes
     downsample_factors = np.array(downsample_factors)
     input_key = "input"
