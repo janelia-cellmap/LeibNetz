@@ -8,8 +8,14 @@ class ModelWrapper(torch.nn.Module):
         """
         super().__init__()
         self.model = model
-        self.input_shapes = {key: {k: tuple([int(s) for s in v]) for k, v in val.items()} for key, val in input_shapes.items()}
-        self.output_shapes = {key: {k: tuple([int(s) for s in v]) for k, v in val.items()} for key, val in output_shapes.items()}
+        self.input_shapes = {
+            key: {k: tuple([int(s) for s in v]) for k, v in val.items()}
+            for key, val in input_shapes.items()
+        }
+        self.output_shapes = {
+            key: {k: tuple([int(s) for s in v]) for k, v in val.items()}
+            for key, val in output_shapes.items()
+        }
         self.name = name
 
         self.input_keys = list(input_shapes.keys())
@@ -31,7 +37,7 @@ class ModelWrapper(torch.nn.Module):
                     1,
                     1,
                 )
-                + tuple(v["shape"].astype(int))
+                + tuple([int(s) for s in v["shape"]])
             ).to(device)
         return inputs
 
