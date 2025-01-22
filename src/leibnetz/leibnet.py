@@ -365,7 +365,10 @@ class LeibNet(Module):
 
     def _get_shapes(self, shape_dict: dict):
         return {
-            k: {"shape": tuple(s[0].astype(int)), "scale": tuple(s[1])}
+            k: {
+                "shape": tuple([int(s) for s in s[0]]),
+                "scale": tuple([float(s) for s in s[1]]),
+            }
             for k, s in shape_dict.items()
         }
 
