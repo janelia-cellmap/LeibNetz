@@ -404,7 +404,21 @@ class LeibNet(Module):
         # outputs is a dictionary of tensors
 
         # initialize buffer
-        self.buffer = {key: inputs[key] for key in self.input_keys}
+        if isinstance(inputs, dict):
+            return_type = "dict"
+            self.buffer = {key: inputs[key] for key in self.input_keys}
+        elif isinstance(inputs, torch.Tensor):
+            assert (
+                len(self.input_keys) == 1
+            ), f"Incorrect number of inputs. Expected 1, got {len(inputs)}."
+            return_type = "tensor"
+            self.buffer = {self.input_keys[0]: inputs}
+        elif not isinstance(inputs, dict):
+            assert len(inputs) == len(
+                self.input_keys
+            ), f"Incorrect number of inputs. Expected {len(self.input_keys)}, got {len(inputs)}."
+            return_type = "list"
+            self.buffer = {key: inputs[i] for i, key in enumerate(self.input_keys)}
 
         # march along nodes based on graph succession
         for flushable_list, node in zip(self.flushable_arrays, self.ordered_nodes):
@@ -431,8 +445,12 @@ class LeibNet(Module):
                         pass
 
         # collect outputs
-        return {key: self.buffer[key] for key in self.output_keys}
-        # return self.buffer
+        if return_type == "tensor":
+            return self.buffer[self.output_keys[0]]
+        elif return_type == "list":
+            return [self.buffer[key] for key in self.output_keys]
+        else:
+            return {key: self.buffer[key] for key in self.output_keys}
 
     # @torch.jit.export
     def to_mermaid(self, separate_arrays: bool = False, vertical: bool = False):
