@@ -6,9 +6,11 @@ from cellmap_data import CellMapDataLoader, CellMapDataSplit
 # pip install git+https://github.com/janelia-cellmap/cellmap-train.git
 from cellmap_train.loss import BCELoss
 
+# pip install git+https://github.com/janelia-cellmap/LeibNetz.git
+import leibnetz
+
 from tqdm import tqdm
 import torch
-import leibnetz
 
 classes = ["mito", "nuc"]  # List of classes
 batch_size = 1  # Batch size
