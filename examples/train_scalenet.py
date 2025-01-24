@@ -1,6 +1,9 @@
 # %%
 # Import the necessary libraries
+# pip install git+https://github.com/janelia-cellmap/cellmap-data.git
 from cellmap_data import CellMapDataLoader, CellMapDataSplit
+
+# pip install git+https://github.com/janelia-cellmap/cellmap-train.git
 from cellmap_train.loss import BCELoss
 
 from tqdm import tqdm
