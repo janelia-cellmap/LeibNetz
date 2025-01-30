@@ -6,7 +6,9 @@ from torch.nn import Module
 import numpy as np
 from leibnetz.nodes import Node
 
-# from funlib.learn.torch.models.conv4d import Conv4d
+import os
+
+os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
 
 # from model_opt.apis import optimize
 
