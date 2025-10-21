@@ -1,5 +1,7 @@
+import os
 from typing import Iterable, Sequence, Tuple
 import networkx as nx
+import onnx2torch
 from torch import device
 import torch
 from torch.nn import Module
@@ -22,7 +24,6 @@ class LeibNet(Module):
         self,
         nodes: Iterable,
         outputs: dict[str, Sequence[Tuple]],
-        # retain_buffer=True,
         initialization="kaiming",
         name="LeibNet",
     ):
@@ -73,8 +74,6 @@ class LeibNet(Module):
             pass
         else:
             raise ValueError(f"Unknown initialization {initialization}")
-        # self.retain_buffer = retain_buffer
-        self.retain_buffer = True
         # if torch.cuda.is_available():
         #     self.cuda()
         # elif torch.backends.mps.is_available():
@@ -408,26 +407,26 @@ class LeibNet(Module):
         # initialize buffer
         if isinstance(inputs, dict):
             return_type = "dict"
-            self.buffer = {key: inputs[key] for key in self.input_keys}
+            buffer = {key: inputs[key] for key in self.input_keys}
         elif isinstance(inputs, torch.Tensor):
             assert (
                 len(self.input_keys) == 1
             ), f"Incorrect number of inputs. Expected 1, got {len(inputs)}."
             return_type = "tensor"
-            self.buffer = {self.input_keys[0]: inputs}
+            buffer = {self.input_keys[0]: inputs}
         elif not isinstance(inputs, dict):
             assert len(inputs) == len(
                 self.input_keys
             ), f"Incorrect number of inputs. Expected {len(self.input_keys)}, got {len(inputs)}."
             return_type = "list"
-            self.buffer = {key: inputs[i] for i, key in enumerate(self.input_keys)}
+            buffer = {key: inputs[i] for i, key in enumerate(self.input_keys)}
 
         # march along nodes based on graph succession
         for flushable_list, node in zip(self.flushable_arrays, self.ordered_nodes):
             # TODO: determine how to make inputs optional
             try:
-                self.buffer.update(
-                    node.forward({k: self.buffer.get(k, None) for k in node.input_keys})
+                buffer.update(
+                    node.forward({k: buffer.get(k, None) for k in node.input_keys})
                 )
             except KeyError:
                 logger.warning(f"Node ID {node.id} is missing inputs.")
@@ -435,24 +434,13 @@ class LeibNet(Module):
                 logger.error(f"Node ID {node.id} failed with error: {e}")
                 raise e
 
-            # clear unnecessary arrays from buffer
-            if not self.retain_buffer:
-                raise NotImplementedError(
-                    "This has not been successfully implemented yet."
-                )
-                for key in flushable_list:
-                    try:
-                        del self.buffer[key]
-                    except KeyError:
-                        pass
-
         # collect outputs
         if return_type == "tensor":
-            return self.buffer[self.output_keys[0]]
+            return buffer[self.output_keys[0]]
         elif return_type == "list":
-            return [self.buffer[key] for key in self.output_keys]
+            return [buffer[key] for key in self.output_keys]
         else:
-            return {key: self.buffer[key] for key in self.output_keys}
+            return {key: buffer[key] for key in self.output_keys}
 
     # @torch.jit.export
     def to_mermaid(self, separate_arrays: bool = False, vertical: bool = False):
@@ -548,12 +536,27 @@ class LeibNet(Module):
     #     self.optimized_model = optimize(self, self.get_example_inputs())
     #     return self.optimized_model
 
-    def save(self, path: str):
-        torch.save(self, path)
+    def export(self, path: str):
+        if path.endswith(".onnx"):
+            os.environ["TORCHDYNAMO_VERBOSE"] = "1"
+            os.environ["TORCH_LOGS"] = "+dynamo"
+            # onnx_model = torch.onnx.dynamo_export(
+            torch.onnx.export(
+                self,
+                kwargs={"inputs": self.get_example_inputs()},
+                f=path,
+                export_options=torch.onnx.ExportOptions(dynamic_shapes=True),
+            )
+            # onnx_model.save(path)
+        else:
+            torch.save(self, path)
 
     @staticmethod
     def load(path: str):
-        return torch.load(path)
+        if path.endswith(".onnx"):
+            return onnx2torch.convert(path)
+        else:
+            return torch.load(path)
 
     def __getitem__(self, key):
         if not hasattr(self, "heads"):
