@@ -12,10 +12,10 @@ import leibnetz
 from tqdm import tqdm
 import torch
 
-classes = ["mito", "nuc"]  # List of classes
-batch_size = 1  # Batch size
-steps = 100  # Steps per epoch
-epochs = 10  # Number of epochs
+classes = ["mito", "nuc", "er", "cell"]  # List of classes
+batch_size = 16  # Batch size
+steps = 1000  # Steps per epoch
+epochs = 100  # Number of epochs
 
 # Define the model hyperparameters
 shared_kwargs = {

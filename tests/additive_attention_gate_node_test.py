@@ -17,6 +17,9 @@ class TestAdditiveAttentionGateNode(unittest.TestCase):
             identifier="test",
             ndims=3,
         )
+        # Initialize the node with required scale and ndims
+        self.node.set_scale([1, 1, 1])  # 3D scale with unit scale
+        self.node.set_least_common_scale([1, 1, 1])  # Set least common scale
         self.inputs = {
             "input": torch.randn(1, 3, 10, 10, 10),
             "gating": torch.randn(1, 3, 10, 10, 10),
@@ -26,7 +29,8 @@ class TestAdditiveAttentionGateNode(unittest.TestCase):
         output = self.node.forward(self.inputs)
         self.assertIsInstance(output, dict)
         self.assertIn("output", output)
-        self.assertEqual(output["output"].shape, torch.Size([1, 10, 10, 10]))
+        # The output should have the same shape as the input after the attention operation
+        self.assertEqual(output["output"].shape, torch.Size([1, 3, 10, 10, 10]))
 
     def test_get_input_from_output_shape(self):
         output_shape = np.array([10, 10, 10])

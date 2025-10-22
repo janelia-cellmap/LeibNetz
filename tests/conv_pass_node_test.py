@@ -14,13 +14,17 @@ class TestConvPassNode(unittest.TestCase):
             kernel_sizes=[[3, 3, 3]],
             identifier="test",
         )
+        # Initialize the node with required scale and ndims
+        self.node.set_scale([1, 1, 1])  # 3D scale with unit scale
+        self.node.set_least_common_scale([1, 1, 1])  # Set least common scale
         self.inputs = {"input": torch.randn(1, 3, 10, 10, 10)}
 
     def test_forward(self):
         output = self.node.forward(self.inputs)
         self.assertIsInstance(output, dict)
         self.assertIn("output", output)
-        self.assertEqual(output["output"].shape, torch.Size([1, 3, 10, 10, 10]))
+        # With 3x3x3 kernel and 'valid' padding, we lose 2 pixels on each side: 10 - 2 = 8
+        self.assertEqual(output["output"].shape, torch.Size([1, 3, 8, 8, 8]))
 
     def test_get_input_from_output_shape(self):
         output_shape = np.array([10, 10, 10])
