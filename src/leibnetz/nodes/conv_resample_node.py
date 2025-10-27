@@ -1,10 +1,11 @@
 import numpy as np
 import torch
+from leibnetz.nodes import Node
 from leibnetz.nodes.resample_ops import Upsample, ConvDownsample
 from leibnetz.nodes.node_ops import ConvPass
 
 
-class ConvResampleNode(torch.nn.Module):
+class ConvResampleNode(Node):
     def __init__(
         self,
         input_keys,
@@ -26,10 +27,19 @@ class ConvResampleNode(torch.nn.Module):
             self.color = "#00FF00"
             self._type = "conv_pass"
         elif np.all(self.scale_factor <= 1):
+            # ConvDownsample expects kernel_sizes as [3, 3, 3], not [[3, 3, 3]]
+            if (
+                self.kernel_sizes is not None
+                and len(self.kernel_sizes) > 0
+                and isinstance(self.kernel_sizes[0], list)
+            ):
+                downsample_kernel_sizes = self.kernel_sizes[0]
+            else:
+                downsample_kernel_sizes = self.kernel_sizes
             self.model = ConvDownsample(
                 self.input_nc,
                 self.output_nc,
-                self.kernel_sizes,
+                downsample_kernel_sizes,
                 (1 / self.scale_factor).astype(int),
             )
             self.color = "#00FFFF"
@@ -49,17 +59,33 @@ class ConvResampleNode(torch.nn.Module):
             )
 
     def forward(self, inputs):
-        outputs = self.model(inputs)
+        # Extract the tensor from the inputs dict like other nodes do
+        # ConvResampleNode expects a single input tensor
+        input_tensor = inputs[self.input_keys[0]]
+        outputs = self.model(input_tensor)
+
+        # Handle the case where outputs might be a single tensor
+        if not isinstance(outputs, (list, tuple)):
+            outputs = [outputs]
+
         return {key: val for key, val in zip(self.output_keys, outputs)}
 
-    def compute_minimal_shapes(self):
-        raise NotImplementedError
+    def get_input_from_output_shape(self, output_shape):
+        """Calculate required input shape for given output shape"""
+        # TODO: Implement proper shape calculation based on convolution and sampling
+        # For now, return a placeholder implementation
+        output_shape = np.array(output_shape)
+        # Reverse the scaling operation
+        input_shape = output_shape / self.scale_factor
+        return {
+            key: (input_shape, self.scale / self.scale_factor)
+            for key in self.input_keys
+        }
 
-    def is_valid_input_shape(self, input_shape):
-        raise NotImplementedError
-
-    def get_input_from_output(self, output_shape):
-        raise NotImplementedError
-
-    def get_output_from_input(self, input_shape):
-        raise NotImplementedError
+    def get_output_from_input_shape(self, input_shape):
+        """Calculate output shape for given input shape"""
+        # TODO: Implement proper shape calculation based on convolution and sampling
+        # For now, return a placeholder implementation
+        input_shape = np.array(input_shape)
+        output_shape = input_shape * self.scale_factor
+        return {key: (output_shape.astype(int), self.scale) for key in self.output_keys}

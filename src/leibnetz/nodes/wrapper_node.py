@@ -5,9 +5,12 @@ from leibnetz.nodes import Node
 
 
 class WrapperNode(Node):
-    def __init__(self, model, input_keys, output_keys, identifier=None):
+    def __init__(
+        self, model, input_keys, output_keys, identifier=None, output_key_channels=None
+    ):
         super().__init__(input_keys, output_keys, identifier)
         self.model = model
+        self.output_key_channels = output_key_channels
         self._type = __name__.split(".")[-1]
         self.color = "#FF0000"
 
