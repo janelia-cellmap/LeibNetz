@@ -205,8 +205,6 @@ class TestLeibNet(unittest.TestCase):
         for k, v in net._input_shapes.items():
             inputs[k] = torch.rand((1, 1) + tuple(v[0].astype(int)))
         
-        # Note: This method has implementation issues with numpy array truth values
-        # Test that it executes without modification of the original code
         try:
             is_valid = net.check_input_shapes(inputs)
             self.assertIsInstance(is_valid, (bool, np.bool_))
