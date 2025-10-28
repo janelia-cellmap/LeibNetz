@@ -91,7 +91,7 @@ class ConvResampleNode(Node):
         else:
             # Fallback: reverse the scale factor
             input_shape = np.array(output_shape) / np.array(self.scale_factor)
-            
+
         return {
             key: (input_shape, self.scale / np.array(self.scale_factor))
             for key in self.input_keys
@@ -105,5 +105,5 @@ class ConvResampleNode(Node):
         else:
             # Fallback: apply the scale factor
             output_shape = np.array(input_shape) * np.array(self.scale_factor)
-            
+
         return {key: (output_shape.astype(int), self.scale) for key in self.output_keys}

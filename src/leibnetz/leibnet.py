@@ -8,11 +8,7 @@ from torch.nn import Module
 import numpy as np
 from leibnetz.nodes import Node
 
-import os
-
 os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
-
-# from model_opt.apis import optimize
 
 import logging
 
@@ -307,6 +303,18 @@ class LeibNet(Node):
         return node_scales_todo, scale_buffer
 
     def compute_shapes(self, outputs: dict[str, Sequence[Tuple]], set=True):
+        """Compute input shapes required for given output shapes.
+        
+        Walks backwards through the network graph to determine input shapes
+        needed to produce the requested output shapes.
+        
+        Args:
+            outputs: Dictionary of desired output shapes.
+            set: Whether to store computed shapes in the instance (default: True).
+            
+        Returns:
+            tuple: (input_shapes, array_shapes) dictionaries.
+        """
         # walk backwards through graph to determine input shapes closest to requested output shapes
         shape_buffer = outputs.copy()
         for node in self.ordered_nodes[::-1]:
@@ -417,7 +425,7 @@ class LeibNet(Node):
     @property
     def devices(self):
         """Get list of devices used by model parameters.
-        
+
         Returns:
             list: List of devices used by model parameters.
         """
@@ -468,17 +476,13 @@ class LeibNet(Node):
 
     def forward(self, inputs: dict[str, dict[str, Sequence[int | float]]]):
         """Forward pass through the network.
-        
+
         Args:
             inputs: Dictionary of input tensors, where keys match input_keys.
-            
+
         Returns:
             dict: Dictionary of output tensors, where keys match output_keys.
         """
-        # function for forwarding data through the network
-        # inputs is a dictionary of tensors
-        # outputs is a dictionary of tensors
-
         # initialize buffer
         if isinstance(inputs, dict):
             return_type = "dict"

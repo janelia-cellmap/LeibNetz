@@ -138,7 +138,7 @@ def build_unet(
             # kernel_sizes,
             [(1,) * len(top_resolution)],
             identifier="output",
-            norm_layer=norm_layer,  # TODO: remove?
+            norm_layer=norm_layer,
             residual=residual,
             dropout_prob=dropout_prob,
             activation=activation,

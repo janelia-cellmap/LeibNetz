@@ -24,6 +24,33 @@ def build_subnet(
     activation="ReLU",
     final_activation="Sigmoid",
 ):
+    """Build a subnet for use in multi-scale networks.
+
+    Creates a single subnet that can be used as part of a larger multi-scale architecture.
+    Similar to U-Net but designed for integration into multi-scale processing.
+
+    Args:
+        bottleneck_input_dict: Optional dictionary for bottleneck input configuration.
+        subnet_id: Identifier for this subnet.
+        top_resolution: Target resolution at the lowest level (default: (8, 8, 8)).
+        downsample_factors: Downsampling factors for each level.
+        kernel_sizes: Convolution kernel sizes.
+        input_nc: Number of input channels (default: 1).
+        output_nc: Number of output channels (default: 1).
+        base_nc: Base number of channels (default: 12).
+        nc_increase_factor: Factor to increase channels per level (default: 2).
+        num_final_convs: Number of final convolution layers (default: 1).
+        norm_layer: Normalization layer to use.
+        residual: Whether to use residual connections (default: False).
+        dropout_prob: Dropout probability.
+        squeeze_excitation: Whether to use squeeze-and-excitation blocks (default: False).
+        squeeze_ratio: Squeeze ratio for SE blocks (default: 2).
+        activation: Activation function (default: "ReLU").
+        final_activation: Final activation function (default: "Sigmoid").
+
+    Returns:
+        tuple: (nodes_list, outputs_dict, bottleneck_output_dict)
+    """
     ndims = len(top_resolution)
     if downsample_factors is None:
         downsample_factors = [(2,) * ndims] * 2
@@ -162,6 +189,18 @@ def build_scale_net(
         {"top_resolution": (8, 8, 8)},
     ]
 ):
+    """Build a multi-scale network architecture using multiple subnets.
+
+    Creates a ScaleNet that processes inputs at different scales using multiple
+    subnet instances. Each subnet handles a different resolution/scale.
+
+    Args:
+        subnet_dict_list: List of dictionaries containing subnet configuration.
+                         Each dict should contain at least 'top_resolution'.
+
+    Returns:
+        LeibNet: The constructed multi-scale network.
+    """
     nodes = []
     outputs = {}
     bottleneck_input_dict = None
