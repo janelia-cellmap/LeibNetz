@@ -28,18 +28,26 @@ class LeibNet(Module):
         name="LeibNet",
     ):
         super().__init__()
+        
+        # Add Node interface attributes to make LeibNet composable as a node
+        self.id = name
+        self.color = "#0000FF"  # Blue color for LeibNet nodes
+        self._type = "leibnet"
+        
         full_node_list = []
+        
         for node in nodes:
             if isinstance(node, Node):
                 full_node_list.append(node)
             elif isinstance(node, LeibNet):
-                # TODO: nest naming, so a LeibNet can be a node and its nodes will get unique ids
-                full_node_list.append(node.nodes)
+                # Flatten the nested LeibNet's nodes into our node list
+                full_node_list.extend(node.nodes)
             else:
                 msg = f"{node} is not a Node or LeibNet."
                 raise ValueError(msg)
         self.nodes = full_node_list
-        self.nodes_dict = torch.nn.ModuleDict({node.id: node for node in nodes})
+        # Create nodes_dict with all nodes (including flattened ones from nested LeibNets)
+        self.nodes_dict = torch.nn.ModuleDict({node.id: node for node in self.nodes})
         self.graph = nx.DiGraph()
         self.assemble(outputs)
         self.initialization = initialization

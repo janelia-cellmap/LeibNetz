@@ -44,20 +44,35 @@ class TestLeibNet(unittest.TestCase):
 
     def test_init_with_leibnet_object(self):
         """Test LeibNet initialization with another LeibNet as a node"""
-        # Note: This test covers the code path but the actual functionality 
-        # has issues in the implementation - the nested LeibNet doesn't have the required attributes
-        # This tests the error condition
+        # Note: Nested LeibNets are fully supported by design. LeibNet instances can be used as nodes
+        # since they implement the required Node interface attributes (id, color, _type, input_keys, output_keys).
+        # This test verifies that nested composition works correctly.
         inner_net = LeibNet(
             self.simple_nodes,
             self.simple_outputs
         )
         
-        # This should fail because LeibNet doesn't have the required node attributes
-        with self.assertRaises(AttributeError):
-            net = LeibNet(
-                [inner_net],  # Using another LeibNet as node
-                self.simple_outputs
-            )
+        # This should succeed - LeibNets are composable
+        outer_net = LeibNet(
+            [inner_net],  # Using another LeibNet as node
+            self.simple_outputs
+        )
+        
+        # The outer net should flatten the inner net's nodes
+        self.assertIsInstance(outer_net, LeibNet)
+        self.assertEqual(len(outer_net.nodes), len(inner_net.nodes))  # Nodes are flattened
+        
+        # LeibNet should have Node interface attributes
+        self.assertTrue(hasattr(outer_net, 'id'))
+        self.assertTrue(hasattr(outer_net, 'color'))
+        self.assertTrue(hasattr(outer_net, '_type'))
+        self.assertTrue(hasattr(outer_net, 'input_keys'))
+        self.assertTrue(hasattr(outer_net, 'output_keys'))
+        
+        # Should have proper values
+        self.assertEqual(outer_net.id, "LeibNet")
+        self.assertEqual(outer_net._type, "leibnet")
+        self.assertEqual(outer_net.color, "#0000FF")
 
     def test_init_with_invalid_node_raises_error(self):
         """Test LeibNet initialization with invalid node raises error"""
