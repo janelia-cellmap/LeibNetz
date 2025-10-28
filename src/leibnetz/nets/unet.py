@@ -18,6 +18,28 @@ def build_unet(
     activation="ReLU",
     final_activation="Sigmoid",
 ):
+    """Build a U-Net architecture using LeibNetz nodes.
+
+    Creates a U-Net encoder-decoder architecture with skip connections.
+    The U-Net is built using ConvPassNode and ResampleNode components.
+
+    Args:
+        top_resolution: Target resolution at the lowest level (default: (8, 8, 8)).
+        downsample_factors: Downsampling factors for each level.
+        kernel_sizes: Convolution kernel sizes.
+        input_nc: Number of input channels (default: 1).
+        output_nc: Number of output channels (default: 1).
+        base_nc: Base number of channels (default: 12).
+        nc_increase_factor: Factor to increase channels per level (default: 2).
+        norm_layer: Normalization layer to use.
+        residual: Whether to use residual connections (default: False).
+        dropout_prob: Dropout probability.
+        activation: Activation function (default: "ReLU").
+        final_activation: Final activation function (default: "Sigmoid").
+
+    Returns:
+        LeibNet: The constructed U-Net model.
+    """
     ndims = len(top_resolution)
     if downsample_factors is None:
         downsample_factors = [(2,) * ndims] * 2

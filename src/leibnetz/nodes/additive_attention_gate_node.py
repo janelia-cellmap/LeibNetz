@@ -7,6 +7,14 @@ from leibnetz.nodes.node_ops import ConvPass
 
 # TODO: Not 2D compatible
 class AdditiveAttentionGateNode(Node):
+    """Additive attention gate node for selectively emphasizing features.
+
+    Implements attention mechanism from https://arxiv.org/pdf/1804.03999.pdf.
+    Currently only supports 3D operations.
+
+    Note: Not 2D compatible.
+    """
+
     def __init__(
         self,
         output_keys,
@@ -18,14 +26,14 @@ class AdditiveAttentionGateNode(Node):
         identifier=None,
         ndims=3,
     ) -> None:
-        """Attention Block Module::
+        """Attention Block Module.
 
             Implemented from paper: https://arxiv.org/pdf/1804.03999.pdf
 
             The attention block takes two inputs: 'g' (gating signal) and 'x' (input features).
 
-                [g] --> W_g --\                 /--> psi --> * --> [output]
-                                \               /
+                [g] --> W_g --\\                 /--> psi --> * --> [output]
+                                \\               /
                 [x] --> W_x --> [+] --> relu --
 
         Where:
@@ -112,7 +120,7 @@ class AdditiveAttentionGateNode(Node):
             inputs[key] = self.crop(inputs[key], smallest_shape)
         return inputs
 
-    def forward(self, inputs):  # TODO
+    def forward(self, inputs):
         # implement any parsing of input/output buffers here
         # buffers are dictionaries
 
@@ -142,7 +150,7 @@ class AdditiveAttentionGateNode(Node):
         output = torch.matmul(x, psi)
         return {key: val for key, val in zip(self.output_keys, [output])}
 
-    def get_input_from_output_shape(self, output_shape):  # TODO
+    def get_input_from_output_shape(self, output_shape):
         input_shape = output_shape * self.scale  # to world coordinates
         input_shape = (
             np.ceil(input_shape / self.least_common_scale) * self.least_common_scale
@@ -151,11 +159,11 @@ class AdditiveAttentionGateNode(Node):
         assert (np.ceil(input_shape) == input_shape).all()
         return {key: (input_shape, self.scale) for key in self.input_keys}
 
-    def get_output_from_input_shape(self, input_shape):  # TODO
+    def get_output_from_input_shape(self, input_shape):
         output_shape = input_shape - self.factor_crop(input_shape)
         return {key: (output_shape, self.scale) for key in self.output_keys}
 
-    def factor_crop(self, input_shape):  # TODO
+    def factor_crop(self, input_shape):
         """Crop feature maps to ensure translation equivariance with stride of
         upsampling factor. This should be done right after upsampling, before
         application of the resamples with the given kernel sizes.
@@ -187,7 +195,7 @@ class AdditiveAttentionGateNode(Node):
 
         return (spatial_shape - target_spatial_shape) / self.scale
 
-    def crop_to_factor(self, x):  # TODO
+    def crop_to_factor(self, x):
         shape = x.shape[-self.ndims :]
         target_shape = shape - self.factor_crop(shape)
         # if (target_shape != shape).all():
@@ -195,7 +203,7 @@ class AdditiveAttentionGateNode(Node):
 
         return x
 
-    def crop(self, x: torch.Tensor, shape):  # TODO
+    def crop(self, x: torch.Tensor, shape):
         """Center-crop x to match spatial dimensions given by shape."""
 
         x_target_size = x.size()[: -self.ndims] + tuple(shape)

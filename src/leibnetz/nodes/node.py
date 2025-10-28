@@ -6,6 +6,18 @@ from torch.nn import Module
 
 # defines baseclass for all nodes in the network
 class Node(Module):
+    """Base class for all neural network nodes in LeibNetz.
+
+    All LeibNetz nodes inherit from this class, which provides the fundamental interface
+    for shape calculation, cropping operations, and forward pass functionality.
+    Nodes can be composed together to create complex neural network architectures.
+
+    Args:
+        input_keys: List of input key names this node expects.
+        output_keys: List of output key names this node produces.
+        identifier: Optional unique identifier for the node.
+    """
+
     id: Any
     output_keys: Iterable[str]
     _type: str

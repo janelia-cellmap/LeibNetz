@@ -20,6 +20,19 @@ logger = logging.getLogger(__name__)
 
 
 class LeibNet(Node):
+    """Main LeibNet class for composing neural network architectures from nodes.
+
+    LeibNet allows composing complex neural networks by connecting multiple Node objects
+    in a directed acyclic graph. It handles automatic shape propagation, device management,
+    and provides utilities for model export and visualization.
+
+    Args:
+        nodes: Iterable of Node or Module objects to compose into the network.
+        outputs: Dictionary mapping output keys to their shape specifications.
+        initialization: Weight initialization method (default: "kaiming").
+        name: Name identifier for the network (default: "LeibNet").
+    """
+
     def __init__(
         self,
         nodes: Iterable,
@@ -36,33 +49,35 @@ class LeibNet(Node):
             else:
                 msg = f"{node} is not a Node or LeibNet."
                 raise ValueError(msg)
-        
+
         # Determine input_keys and output_keys from the network structure
         all_input_keys = []
         all_output_keys = []
         internal_outputs = set()
-        
+
         for node in temp_nodes:
-            if hasattr(node, 'input_keys'):
+            if hasattr(node, "input_keys"):
                 all_input_keys.extend(node.input_keys)
-            if hasattr(node, 'output_keys'):
+            if hasattr(node, "output_keys"):
                 all_output_keys.extend(node.output_keys)
                 internal_outputs.update(node.output_keys)
-        
+
         # Network input_keys are those that are not produced by any internal node
         input_keys = [key for key in all_input_keys if key not in internal_outputs]
         # Network output_keys are specified in the outputs parameter
         output_keys = list(outputs.keys())
-        
+
         # Initialize Node with the network's interface
-        super().__init__(input_keys=input_keys, output_keys=output_keys, identifier=name)
-        
+        super().__init__(
+            input_keys=input_keys, output_keys=output_keys, identifier=name
+        )
+
         # Override the Node attributes for LeibNet-specific values
         self.color = "#0000FF"  # Blue color for LeibNet nodes
         self._type = "leibnet"
-        
+
         full_node_list = []
-        
+
         for node in nodes:
             if isinstance(node, Node):
                 full_node_list.append(node)
@@ -186,11 +201,11 @@ class LeibNet(Node):
         ]
 
         # input_keys and output_keys are set by Node.__init__ and represent the external interface; do not override with internal graph structure.
-        
+
         # Store internal input/output nodes for reference
         self._internal_input_nodes = self.input_nodes
         self._internal_output_nodes = self.output_nodes
-        
+
         # Calculate internal input/output keys for internal use
         self._internal_input_keys = []
         for node in self.input_nodes:
@@ -401,6 +416,11 @@ class LeibNet(Node):
     # TODO: Add specification for sending arrays to different devices during forward pass
     @property
     def devices(self):
+        """Get list of devices used by model parameters.
+        
+        Returns:
+            list: List of devices used by model parameters.
+        """
         devices = []
         for parameters in self.parameters():
             devices.append(parameters.device)
@@ -417,18 +437,22 @@ class LeibNet(Node):
 
     @property
     def input_shapes(self):
+        """Get input shapes dictionary with shape and scale information."""
         return self._get_shapes(self._input_shapes)
 
     @property
     def output_shapes(self):
+        """Get output shapes dictionary with shape and scale information."""
         return self._get_shapes(self._output_shapes)
 
     @property
     def array_shapes(self):
+        """Get array shapes dictionary with shape and scale information."""
         return self._get_shapes(self._array_shapes)
 
     @property
     def param_num(self):
+        """Get total number of parameters in the model."""
         param_num = 0
         for key, val in self.named_parameters():
             # print(f"{key}: {val.shape}")
@@ -436,12 +460,21 @@ class LeibNet(Node):
         return param_num
 
     def mps(self):
+        """Move model to Apple Silicon MPS device if available."""
         if torch.backends.mps.is_available():
             self.to("mps")
         else:
             logger.error('Unable to move model to Apple Silicon ("mps")')
 
     def forward(self, inputs: dict[str, dict[str, Sequence[int | float]]]):
+        """Forward pass through the network.
+        
+        Args:
+            inputs: Dictionary of input tensors, where keys match input_keys.
+            
+        Returns:
+            dict: Dictionary of output tensors, where keys match output_keys.
+        """
         # function for forwarding data through the network
         # inputs is a dictionary of tensors
         # outputs is a dictionary of tensors
@@ -624,31 +657,31 @@ class LeibNet(Node):
             # Use the provided output_shape for all our outputs
             # This is a simplification - in practice each output might have different shapes
             dummy_outputs[key] = (output_shape, np.ones(len(output_shape)))
-        
+
         input_shapes, _ = self.compute_shapes(dummy_outputs, set=False)
-        
+
         # Convert to the format expected by Node interface
         result = {}
         for key, (shape, scale) in input_shapes.items():
             result[key] = (shape, scale)
         return result
-    
+
     def get_output_from_input_shape(self, input_shape):
         """Calculate output shapes for a given input shape"""
         # For a LeibNet used as a node, we need to determine outputs from inputs
         # This is more complex since we need to run through our internal graph
-        
+
         # Create dummy inputs using our input_keys
         dummy_inputs = {}
         for key in self.input_keys:
             # Use the provided input_shape for all our inputs
             dummy_inputs[key] = (input_shape, np.ones(len(input_shape)))
-        
+
         # We can use our internal shape computation, but we need the actual outputs
         # For now, return the stored output shapes (this is a simplification)
         result = {}
         for key in self.output_keys:
-            if hasattr(self, '_output_shapes') and key in self._output_shapes:
+            if hasattr(self, "_output_shapes") and key in self._output_shapes:
                 shape, scale = self._output_shapes[key]
                 result[key] = (shape, scale)
             else:

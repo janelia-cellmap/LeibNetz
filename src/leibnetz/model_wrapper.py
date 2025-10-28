@@ -2,10 +2,20 @@ import torch
 
 
 class ModelWrapper(torch.nn.Module):
+    """Wrapper for models to make them interchangeable with LeibNet.
+
+    Wraps models that take array inputs and return array outputs to provide
+    a consistent interface compatible with LeibNet nodes. Handles shape
+    management and device operations.
+
+    Args:
+        model: The model to wrap.
+        input_shapes: Dictionary of input shape specifications.
+        output_shapes: Dictionary of output shape specifications.
+        name: Name for the wrapped model (default: "ModelWrapper").
+    """
+
     def __init__(self, model, input_shapes, output_shapes, name="ModelWrapper"):
-        """
-        Wrap a model that takes an array input, or list of array inputs, and returns an array output, or list of array outputs, such that it is interchangeable with a LeibNet.
-        """
         super().__init__()
         self.model = model
         self.input_shapes = {
