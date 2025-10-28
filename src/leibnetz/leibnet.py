@@ -185,9 +185,7 @@ class LeibNet(Node):
             node for node in self.nodes if self.graph.out_degree(node) == 0
         ]
 
-        # Note: input_keys and output_keys are now set by Node.__init__ 
-        # and represent the external interface of this LeibNet when used as a node
-        # Don't override them with internal graph structure
+        # input_keys and output_keys are set by Node.__init__ and represent the external interface; do not override with internal graph structure.
         
         # Store internal input/output nodes for reference
         self._internal_input_nodes = self.input_nodes
