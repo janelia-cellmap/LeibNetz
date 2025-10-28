@@ -304,14 +304,14 @@ class LeibNet(Node):
 
     def compute_shapes(self, outputs: dict[str, Sequence[Tuple]], set=True):
         """Compute input shapes required for given output shapes.
-        
+
         Walks backwards through the network graph to determine input shapes
         needed to produce the requested output shapes.
-        
+
         Args:
             outputs: Dictionary of desired output shapes.
             set: Whether to store computed shapes in the instance (default: True).
-            
+
         Returns:
             tuple: (input_shapes, array_shapes) dictionaries.
         """
