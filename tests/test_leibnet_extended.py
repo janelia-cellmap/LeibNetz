@@ -58,9 +58,13 @@ class TestLeibNet(unittest.TestCase):
             self.simple_outputs
         )
         
-        # The outer net should flatten the inner net's nodes
+        # The outer net should NOT flatten the inner net's nodes - it treats inner_net as a black box
         self.assertIsInstance(outer_net, LeibNet)
-        self.assertEqual(len(outer_net.nodes), len(inner_net.nodes))  # Nodes are flattened
+        self.assertEqual(len(outer_net.nodes), 1)  # One node: the inner_net itself
+        self.assertEqual(len(inner_net.nodes), 2)  # Inner net still has its original nodes
+        
+        # The outer net's single node should be the inner net
+        self.assertEqual(outer_net.nodes[0], inner_net)
         
         # LeibNet should have Node interface attributes
         self.assertTrue(hasattr(outer_net, 'id'))
@@ -73,6 +77,10 @@ class TestLeibNet(unittest.TestCase):
         self.assertEqual(outer_net.id, "LeibNet")
         self.assertEqual(outer_net._type, "leibnet")
         self.assertEqual(outer_net.color, "#0000FF")
+        
+        # Should inherit from Node
+        from leibnetz.nodes import Node
+        self.assertIsInstance(outer_net, Node)
 
     def test_init_with_invalid_node_raises_error(self):
         """Test LeibNet initialization with invalid node raises error"""
