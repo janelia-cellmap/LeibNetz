@@ -62,8 +62,8 @@ clean:
 	rm -rf .coverage
 	rm -rf htmlcov/
 	rm -rf coverage.xml
-	find . -type d -name __pycache__ -delete
 	find . -type f -name "*.pyc" -delete
+	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 
 build: clean
 	python -m build
