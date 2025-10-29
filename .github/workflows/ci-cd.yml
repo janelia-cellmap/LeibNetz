@@ -22,6 +22,9 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.head_ref }}
+        token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Set up Python
       uses: actions/setup-python@v5
@@ -39,11 +42,19 @@ jobs:
 
     - name: Format with black
       run: |
-        black --check --diff src tests
+        black src tests
 
     - name: Import sort with isort
       run: |
-        isort --check-only src tests
+        isort src tests
+
+    - name: Commit formatting changes
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git add -A
+        git diff --staged --quiet || git commit -m "style: auto-format code with black and isort [skip ci]"
+        git push || true
 
   test:
     name: ${{ matrix.platform }} (${{ matrix.python-version }})
