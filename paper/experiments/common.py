@@ -64,6 +64,9 @@ use_mutual_exclusion = True  # whether to use mutual exclusion during training
 force_all_classes = (
     False  # whether to force all classes to be present in each training sample
 )
+validation_prob = 0.1
+datasets = ["*"]
+crops = ["*"]
 
 # Set a limit to how long the validation can take
 validation_time_limit = 60  # time limit in seconds for the validation step
@@ -82,6 +85,7 @@ shared_kwargs = {
     "base_nc": 12,
     "nc_increase_factor": 2,
     "num_final_convs": 3,
+    "convs_per_level": 3,
     "residual": True,
     "norm_layer": "InstanceNorm",
 }
