@@ -42,8 +42,8 @@ class AdditiveAttentionGateNode(Node):
 
             The attention block takes two inputs: 'g' (gating signal) and 'x' (input features).
 
-                [g] --> W_g --\\                 /--> psi --> * --> [output]
-                                \\               /
+                [g] --> W_g --\                 /--> psi --> * --> [output]
+                                \               /
                 [x] --> W_x --> [+] --> relu --
 
         Where:
