@@ -93,7 +93,7 @@ class ConvResampleNode(Node):
             input_shape = np.array(output_shape) / np.array(self.scale_factor)
 
         return {
-            key: (input_shape, self.scale / np.array(self.scale_factor))
+            key: (input_shape, self.scale / self.scale_factor)
             for key in self.input_keys
         }
 
