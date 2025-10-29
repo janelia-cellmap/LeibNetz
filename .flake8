@@ -23,3 +23,8 @@ exclude =
 
 # Set maximum complexity for functions (optional)
 max-complexity = 10
+
+# Per-file ignores
+per-file-ignores =
+    # F401: Imported but unused - OK in __init__.py for API exports
+    __init__.py:F401
