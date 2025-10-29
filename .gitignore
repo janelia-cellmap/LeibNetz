@@ -164,3 +164,9 @@ cython_debug/
 
 # etc.
 *.csv
+
+# Experiment files
+paper/experiments/logs
+paper/experiments/tensorboard
+paper/experiments/checkpoints
+paper/experiments/*.sh
