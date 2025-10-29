@@ -12,6 +12,8 @@ def build_unet(
     output_nc=1,
     base_nc=12,
     nc_increase_factor=2,
+    convs_per_level=2,
+    num_final_convs=1,
     norm_layer=None,
     residual=False,
     dropout_prob=None,
@@ -31,6 +33,8 @@ def build_unet(
         output_nc: Number of output channels (default: 1).
         base_nc: Base number of channels (default: 12).
         nc_increase_factor: Factor to increase channels per level (default: 2).
+        convs_per_level: Number of convolution layers per level (default: 2).
+        num_final_convs: Number of final convolution layers (default: 1).
         norm_layer: Normalization layer to use.
         residual: Whether to use residual connections (default: False).
         dropout_prob: Dropout probability.
@@ -44,7 +48,7 @@ def build_unet(
     if downsample_factors is None:
         downsample_factors = [(2,) * ndims] * 2
     if kernel_sizes is None:
-        kernel_sizes = [(3,) * ndims] * 3
+        kernel_sizes = [(3,) * ndims] * convs_per_level
     # define downsample nodes
     downsample_factors = np.array(downsample_factors)
     input_key = "input"
@@ -135,8 +139,7 @@ def build_unet(
             ["output"],
             base_nc,
             output_nc,
-            # kernel_sizes,
-            [(1,) * len(top_resolution)],
+            [(1,) * len(top_resolution)] * num_final_convs,
             identifier="output",
             norm_layer=norm_layer,
             residual=residual,
