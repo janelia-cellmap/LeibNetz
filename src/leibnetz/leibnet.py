@@ -1,5 +1,5 @@
 import os
-from typing import Iterable, Sequence, Tuple
+from typing import Iterable, Optional, Sequence, Tuple
 import networkx as nx
 import onnx2torch
 from torch import device
@@ -401,15 +401,8 @@ class LeibNet(Node):
         return shapes_valid
 
     # @torch.jit.export
-    def get_example_inputs(self, device: device = None):
+    def get_example_inputs(self, device: Optional[torch.device] = None):
         # function for generating example inputs
-        if device is None:
-            if torch.cuda.is_available():
-                device = torch.device("cuda")
-            elif torch.backends.mps.is_available():
-                device = torch.device("mps")
-            else:
-                device = torch.device("cpu")
         inputs = {}
         for k, v in self._input_shapes.items():
             inputs[k] = torch.rand(
@@ -418,7 +411,10 @@ class LeibNet(Node):
                     1,
                 )
                 + tuple(v[0].astype(int))
-            ).to(device)
+            )
+        if device is not None:
+            for k in inputs.keys():
+                inputs[k] = inputs[k].to(device)
         return inputs
 
     # TODO: Add specification for sending arrays to different devices during forward pass

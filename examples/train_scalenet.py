@@ -82,9 +82,6 @@ train_loader = CellMapDataLoader(
     datasplit.train_datasets_combined,
     classes=classes,
     batch_size=batch_size,
-    sampler=lambda: datasplit.train_datasets_combined.get_subset_random_sampler(
-        steps * batch_size
-    ),
     device=device,
 )
 
