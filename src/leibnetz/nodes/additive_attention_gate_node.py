@@ -13,6 +13,16 @@ class AdditiveAttentionGateNode(Node):
     Currently only supports 3D operations.
 
     Note: Not 2D compatible.
+
+    Args:
+        output_keys (list[str]): Keys for the output tensors.
+        gating_key (str): Key for the gating signal input tensor.
+        input_key (str): Key for the input features tensor.
+        output_nc (int): Number of output channels.
+        gating_nc (int): Number of channels in the gating signal.
+        input_nc (int): Number of channels in the input features.
+        identifier (str, optional): Unique identifier for the node. Defaults to None.
+        ndims (int): Number of spatial dimensions (default: 3).
     """
 
     def __init__(
