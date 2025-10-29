@@ -7,32 +7,20 @@ from leibnetz import LeibNet
 
 
 class LearningRule(ABC):
-    """
-    This code is taken from https://github.com/Joxis/pytorch-hebbian.git
-    The code is licensed under the MIT license.
-
-    Please reference the following paper if you use this code:
-    @inproceedings{talloen2020pytorchhebbian,
-    author       = {Jules Talloen and Joni Dambre and Alexander Vandesompele},
-    location     = {Online},
-    title        = {PyTorch-Hebbian: facilitating local learning in a deep learning framework},
-    year         = {2020},
-    }
-    """
-
     name: str = "LearningRule"
+    requires_grad: bool = False
 
     def __init__(self):
         self.logger = logging.getLogger(__name__ + "." + self.__class__.__name__)
 
-    def init_layers(self, model):
+    def init_layers(self, layer):
         pass
 
     def __str__(self):
         return self.__class__.__name__
 
     @abstractmethod
-    def update(self, x, w):
+    def update(self, module, args, kwargs, output):
         pass
 
 
@@ -63,36 +51,37 @@ class GeometricConsistencyRule(LearningRule):
             layer.weight.data.normal_(mean=0.0, std=1.0)
 
     def update(self, module, args, kwargs, output):
-        if module.training:
-            if not hasattr(module, "kernel_size"):
-                # Only implemented for convolutional layers
-                return
-            module.zero_grad()
-            if not hasattr(module, "optimizer"):
-                optimizer = getattr(torch.optim, self.optimizer)
-                setattr(
-                    module,
-                    "optimizer",
-                    optimizer(
-                        [module.weight], lr=self.learning_rate, **self.optimizer_kwargs
-                    ),
-                )
-            with torch.no_grad():
-                inputs = args[0]
-                ndims = len(module.kernel_size)
-                # Randomly permute the input tensor in the spatial dimensions
-                non_spatial_dims = len(inputs.shape) - ndims
-                dim_permutations = torch.randperm(ndims) + non_spatial_dims
-                dim_permutations = (
-                    list(range(non_spatial_dims)) + dim_permutations.tolist()
-                )
-                perm_outputs = output.permute(*dim_permutations)
-                perm_inputs = inputs.permute(*dim_permutations)
-                outputs_of_perm_inputs = module.forward(perm_inputs)
-            loss = torch.nn.functional.mse_loss(outputs_of_perm_inputs, perm_outputs)
-            loss.backward()
-            module.optimizer.step()
-            # TODO: Weights are exploding, need to normalize them
+        if not module.training:
+            return None
+        if not hasattr(module, "kernel_size"):
+            # Only implemented for convolutional layers
+            return None
+        if not args or len(args) == 0:
+            return None
+        module.zero_grad()
+        if not hasattr(module, "optimizer"):
+            optimizer = getattr(torch.optim, self.optimizer)
+            setattr(
+                module,
+                "optimizer",
+                optimizer(
+                    [module.weight], lr=self.learning_rate, **self.optimizer_kwargs
+                ),
+            )
+        with torch.no_grad():
+            inputs = args[0]
+            ndims = len(module.kernel_size)
+            # Randomly permute the input tensor in the spatial dimensions
+            non_spatial_dims = len(inputs.shape) - ndims
+            dim_permutations = torch.randperm(ndims) + non_spatial_dims
+            dim_permutations = list(range(non_spatial_dims)) + dim_permutations.tolist()
+            perm_outputs = output.permute(*dim_permutations)
+            perm_inputs = inputs.permute(*dim_permutations)
+            outputs_of_perm_inputs = module.forward(perm_inputs)
+        loss = torch.nn.functional.mse_loss(outputs_of_perm_inputs, perm_outputs)
+        loss.backward()
+        module.optimizer.step()
+        # TODO: Weights are exploding, need to normalize or regularize them
 
 
 class HebbsRule(LearningRule):
@@ -119,34 +108,43 @@ class HebbsRule(LearningRule):
 
     @torch.no_grad()
     def update(self, module, args, kwargs, output):
-        if module.training:
-            with torch.no_grad():
-                inputs = args[0]
-                if hasattr(module, "kernel_size"):
-                    ndims = len(module.kernel_size)
-                    # Extract patches for convolutional layers
-                    X = extract_kernel_patches(
-                        inputs,
-                        module.in_channels,
-                        module.kernel_size,
-                        module.stride,
-                        module.dilation,
-                    )  # = c1 x 3 x3 x N
-                    Y = extract_image_patches(
-                        output, module.out_channels, ndims
-                    ).T  # = N x c2
-                    d_W = X @ Y  # = c1 x 3 x 3 x 3 x c2
-                    if ndims == 2:
-                        d_W = d_W.permute(3, 0, 1, 2)
-                    if ndims == 3:
-                        d_W = d_W.permute(4, 0, 1, 2, 3)
-                    elif ndims == 4:
-                        d_W = d_W.permute(5, 0, 1, 2, 3, 4)
-                else:
-                    d_W = inputs * output  # = c1 x c2
+        if not module.training:
+            return None
+        if not args or len(args) == 0 or output is None:
+            return None
+        inputs = args[0]
+        if hasattr(module, "kernel_size") and isinstance(
+            module.kernel_size, (list, tuple)
+        ):
+            ndims = len(module.kernel_size)
+            # Extract patches for convolutional layers
+            X = extract_kernel_patches(
+                inputs,
+                module.in_channels,
+                module.kernel_size,
+                module.stride,
+                module.dilation,
+            )  # = c1 x 3 x 3 x N
+            Y = extract_image_patches(output, module.out_channels, ndims).T  # = N x c2
+            d_W = X @ Y  # = c1 x 3 x 3 x 3 x c2
+            if ndims == 2:
+                d_W = d_W.permute(3, 0, 1, 2)
+            if ndims == 3:
+                d_W = d_W.permute(4, 0, 1, 2, 3)
+            elif ndims == 4:
+                d_W = d_W.permute(5, 0, 1, 2, 3, 4)
 
-                d_W = self.normalize_fcn(d_W)
-                module.weight.data += d_W * self.learning_rate
+            d_W = self.normalize_fcn(d_W)
+            module.weight.data += d_W * self.learning_rate
+        else:
+            # Linear or non-conv layers
+            # d_W = Y*X
+            Y = output
+            X = inputs
+            d_W = Y.t() @ X
+            d_W = self.normalize_fcn(d_W)
+            module.weight.data += self.learning_rate * d_W
+        return None
 
 
 class KrotovsRule(LearningRule):
@@ -169,7 +167,7 @@ class KrotovsRule(LearningRule):
         k_ratio: float = 0.5,
         delta: float = 0.4,
         norm: int = 2,
-        normalize_kwargs: dict = {"dim": 0},
+        normalize_kwargs: dict | None = {"dim": 0},
         precision: float = 1e-30,
     ):
         super().__init__()
@@ -188,7 +186,7 @@ class KrotovsRule(LearningRule):
         self.precision = precision
 
     def __str__(self):
-        return f"KrotovsRule(k_ratio={self.k_ratio}, delta={self.delta}, norm={self.norm}, normalize={self.normalize})"
+        return f"KrotovsRule(k_ratio={self.k_ratio}, delta={self.delta}, norm={self.norm}, normalize_kwargs={self.normalize_kwargs})"
 
     def init_layers(self, layer):
         if hasattr(layer, "weight"):
@@ -196,103 +194,150 @@ class KrotovsRule(LearningRule):
 
     @torch.no_grad()
     def update(self, module, args, kwargs, output):
-        pass
-        # if module.training:
-        #     with torch.no_grad():
-        #         inputs = args[0]
-        #         N = inputs.shape[0]
-        #         weights = module.weight
-        #         num_hidden_units = weights.shape[0]
-        #         k = int(self.k_ratio * num_hidden_units)
-        #         if hasattr(module, "kernel_size"):
-        #             ndims = len(module.kernel_size)
+        if not module.training or not args or len(args) == 0:
+            return None
+        inputs = args[0]
+        batch_size = inputs.shape[0]
+        weights = module.weight
 
-        #             # Extract patches for convolutional layers
-        #             X = extract_kernel_patches(
-        #                 inputs,
-        #                 module.in_channels,
-        #                 module.kernel_size,
-        #                 module.stride,
-        #                 module.dilation,
-        #             )  # = c1 x 3 x 3 x 3 x N
+        if hasattr(module, "kernel_size"):
+            # Convolutional layers
+            return self._update_conv_layer(module, inputs, output, batch_size)
+        else:
+            # Linear layers
+            return self._update_linear_layer(module, inputs, output, batch_size)
 
-        #             input_size = X.shape[-1]
+    def _update_conv_layer(self, module, inputs, output, batch_size):
+        """Update weights for convolutional layers using Krotov-Hopfield rule."""
+        ndims = len(module.kernel_size)
 
-        #             # Calculate overlap for each hidden unit and input sample
-        #             tot_input = torch.tensordot(
-        #                 torch.sign(weights) * torch.abs(weights) ** (self.norm - 1), X
-        #             )
+        # Extract patches for convolutional layers
+        X = extract_kernel_patches(
+            inputs,
+            module.in_channels,
+            module.kernel_size,
+            module.stride,
+            module.dilation,
+        )  # Shape: c_in x k1 x k2 x ... x N_patches
 
-        #             # Get the top k activations for each input sample (hidden units ranked per input sample)
-        #             _, indices = torch.topk(tot_input, k=k, dim=0)
+        # Flatten kernel dimensions for easier computation
+        kernel_size_prod = torch.prod(torch.tensor(module.kernel_size)).item()
+        X_flat = X.view(
+            module.in_channels * kernel_size_prod, -1
+        )  # (c_in * k_size, N_patches)
 
-        #             # Apply the activation function for each input sample
-        #             activations = torch.zeros(
-        #                 (num_hidden_units, N), device=weights.device
-        #             )
-        #             activations[indices[0], ...] = 1.0
-        #             activations[indices[k - 1], ...] = -self.delta
-        #             # ================== WIP ==================
-        #             Y = extract_image_patches(
-        #                 output, module.out_channels, ndims
-        #             ).T  # = N x c2
+        # Flatten weights to match
+        W_flat = module.weight.view(
+            module.out_channels, -1
+        )  # (out_channels, c_in * k_size)
 
-        #             d_W = X @ Y  # = c1 x 3 x 3 x 3 x c2
-        #             if ndims == 2:
-        #                 d_W = d_W.permute(3, 0, 1, 2)
-        #             if ndims == 3:
-        #                 d_W = d_W.permute(4, 0, 1, 2, 3)
-        #             elif ndims == 4:
-        #                 d_W = d_W.permute(5, 0, 1, 2, 3, 4)
+        # Apply Krotov-Hopfield learning rule
+        d_W_flat = self._krotov_update(W_flat, X_flat)
 
-        #             # TODO: WIP
-        #             weights = module.weight.view(
-        #                 -1, torch.prod(torch.as_tensor(module.kernel_size))
-        #             )
-        #         else:
-        #             # TODO: WIP
-        #             # ndims = None
-        #             # d_W = inputs * output  # = c1 x c2
-        #             # weights = module.weight
+        # Reshape back to original weight shape
+        d_W = d_W_flat.view_as(module.weight)
 
-        #         inputs = inputs.view(inputs.size(0), -1)
+        # Apply weight update
+        d_W = self.normalize_fcn(d_W)
+        module.weight.data += d_W * self.learning_rate
 
-        #         inputs[0].shape[0]
+        return None
 
-        #         inputs = torch.t(inputs)
+    def _update_linear_layer(self, module, inputs, output, batch_size):
+        """Update weights for linear layers using Krotov-Hopfield rule."""
+        # For linear layers, inputs shape: (batch_size, in_features)
+        # Weights shape: (out_features, in_features)
 
-        #         # Calculate overlap for each hidden unit and input sample
-        #         tot_input = torch.dot(
-        #             torch.sign(weights) * torch.abs(weights) ** (self.norm - 1), inputs
-        #         )
+        X = inputs.T  # (in_features, batch_size)
+        W = module.weight  # (out_features, in_features)
 
-        #         # Get the top k activations for each input sample (hidden units ranked per input sample)
-        #         _, indices = torch.topk(tot_input, k=k, dim=0)
+        # Apply Krotov-Hopfield learning rule
+        d_W = self._krotov_update(W, X)
 
-        #         # Apply the activation function for each input sample
-        #         activations = torch.zeros(
-        #             (num_hidden_units, batch_size), device=weights.device
-        #         )
-        #         activations[indices[0], torch.arange(batch_size)] = 1.0
-        #         activations[indices[k - 1], torch.arange(batch_size)] = -self.delta
+        # Apply weight update
+        d_W = self.normalize_fcn(d_W)
+        module.weight.data += d_W * self.learning_rate
 
-        #         # Sum the activations for each hidden unit, the batch dimension is removed here
-        #         xx = torch.sum(torch.mul(activations, tot_input), 1)
+        return None
 
-        #         # Apply the actual learning rule, from here on the tensor has the same dimension as the weights
-        #         norm_factor = torch.mul(
-        #             xx.view(xx.shape[0], 1).repeat((1, input_size)), weights
-        #         )
-        #         ds = torch.dot(activations, torch.t(inputs)) - norm_factor
+    def _krotov_update(self, weights, inputs):
+        """
+        Core Krotov-Hopfield learning rule implementation.
 
-        #         # Normalize the weight updates so that the largest update is 1 (which is then multiplied by the learning rate)
-        #         nc = torch.max(torch.abs(ds))
-        #         if nc < self.precision:
-        #             nc = self.precision
-        #         d_W = torch.true_divide(ds, nc)
+        Args:
+            weights: (num_units, input_dim) weight matrix
+            inputs: (input_dim, num_samples) input matrix
 
-        #         d_W = self.normalize_fcn(d_W)
-        #         module.weight.data += d_W * self.learning_rate
+        Returns:
+            d_W: Weight updates of same shape as weights
+        """
+        num_units = weights.shape[0]
+        input_dim = weights.shape[1]
+        num_samples = inputs.shape[1]
+
+        # Calculate k (number of active units)
+        k = max(1, int(self.k_ratio * num_units))
+
+        # Calculate overlaps between weights and inputs
+        # weights: (num_units, input_dim), inputs: (input_dim, num_samples)
+        # overlaps: (num_units, num_samples)
+        if self.norm == 2:
+            # L2 norm case (most common)
+            overlaps = weights @ inputs  # (num_units, num_samples)
+        else:
+            # General Lp norm case
+            weight_norms = torch.sign(weights) * torch.abs(weights) ** (self.norm - 1)
+            overlaps = weight_norms @ inputs
+
+        # Initialize weight updates
+        d_W = torch.zeros_like(weights)
+
+        # Process each sample independently
+        for sample_idx in range(num_samples):
+            sample_input = inputs[:, sample_idx]  # (input_dim,)
+            sample_overlaps = overlaps[:, sample_idx]  # (num_units,)
+
+            # Find top-k active units for this sample
+            _, top_k_indices = torch.topk(sample_overlaps, k)
+
+            # Create activation pattern
+            activations = torch.zeros(num_units, device=weights.device)
+
+            # Set activations for top-k units
+            for i, unit_idx in enumerate(top_k_indices):
+                if i == 0:
+                    # Winner (most active unit) gets positive activation
+                    activations[unit_idx] = 1.0
+                elif i == k - 1:
+                    # Last active unit gets anti-Hebbian activation
+                    activations[unit_idx] = -self.delta
+                # Other units remain at 0
+
+            # Apply learning rule: d_W = activations * input - activations * weights * activation_strength
+            for unit_idx in range(num_units):
+                if activations[unit_idx] != 0:
+                    activation = activations[unit_idx]
+                    current_weight = weights[unit_idx, :]
+
+                    # Hebbian term: activation * input
+                    hebbian_term = activation * sample_input
+
+                    # Anti-Hebbian term: activation * current_weight * overlap
+                    overlap_strength = sample_overlaps[unit_idx]
+                    anti_hebbian_term = activation * overlap_strength * current_weight
+
+                    # Combine terms
+                    unit_update = hebbian_term - anti_hebbian_term
+
+                    # Accumulate update (average over samples)
+                    d_W[unit_idx, :] += unit_update / num_samples
+
+        # Normalize updates to prevent explosion
+        update_norm = torch.max(torch.abs(d_W))
+        if update_norm > self.precision:
+            d_W = d_W / update_norm
+
+        return d_W
 
 
 class OjasRule(LearningRule):
@@ -319,44 +364,59 @@ class OjasRule(LearningRule):
 
     @torch.no_grad()
     def update(self, module, args, kwargs, output):
-        if module.training:
-            with torch.no_grad():
-                inputs = args[0]
-                if hasattr(module, "kernel_size"):
-                    # d_W = Y*(X - Y*W)
-                    ndims = len(module.kernel_size)
-                    # Extract patches for convolutional layers
-                    X = extract_kernel_patches(
-                        inputs,
-                        module.in_channels,
-                        module.kernel_size,
-                        module.stride,
-                        module.dilation,
-                    )  # = c1 x 3 x3 x N
-                    Y = extract_image_patches(
-                        output, module.out_channels, ndims
-                    )  # = c2 x N
-                    W = module.weight  # = c2 x c1 x 3 x 3 x 3
-                    if ndims == 2:
-                        W = W.permute(1, 2, 3, 0)
-                    if ndims == 3:
-                        W = W.permute(1, 2, 3, 4, 0)
-                    elif ndims == 4:
-                        W = W.permute(1, 2, 3, 4, 5, 0)
+        if not module.training:
+            return None
+        if not args or len(args) == 0 or output is None:
+            return None
+        inputs = args[0]
+        if hasattr(module, "kernel_size") and isinstance(
+            module.kernel_size, (list, tuple)
+        ):
+            ndims = len(module.kernel_size)
+            # d_W = Y*(X - Y*W)
+            # Extract patches for convolutional layers
+            X = extract_kernel_patches(
+                inputs,
+                module.in_channels,
+                module.kernel_size,
+                module.stride,
+                module.dilation,
+            )  # = c1 x 3 x3 x N
+            Y = extract_image_patches(output, module.out_channels, ndims)  # = c2 x N
+            W = module.weight.data  # = c2 x c1 x 3 x 3 x 3
+            if ndims == 2:
+                W = W.permute(1, 2, 3, 0)
+            if ndims == 3:
+                W = W.permute(1, 2, 3, 4, 0)
+            elif ndims == 4:
+                W = W.permute(1, 2, 3, 4, 5, 0)
 
-                    d_W = (X - W @ Y) @ Y.T  # = c1 x 3 x 3 x 3 x c2
-                    if ndims == 2:
-                        d_W = d_W.permute(3, 0, 1, 2)
-                    if ndims == 3:
-                        d_W = d_W.permute(4, 0, 1, 2, 3)
-                    elif ndims == 4:
-                        d_W = d_W.permute(5, 0, 1, 2, 3, 4)
-                else:
-                    W = module.weight
-                    d_W = output @ (inputs - output @ W)
+            d_W = (X - W @ Y) @ Y.T  # = c1 x 3 x 3 x 3 x c2
+            if ndims == 2:
+                d_W = d_W.permute(3, 0, 1, 2)
+            if ndims == 3:
+                d_W = d_W.permute(4, 0, 1, 2, 3)
+            elif ndims == 4:
+                d_W = d_W.permute(5, 0, 1, 2, 3, 4)
 
-                d_W = self.normalize_fcn(d_W)
-                module.weight.data += d_W * self.learning_rate
+            d_W = self.normalize_fcn(d_W)
+            module.weight.data += d_W * self.learning_rate
+        else:
+            # Linear or non-conv layers
+            # Oja's rule: d_W = Y*(X - Y*W)
+            # For linear layer: W is (out_features, in_features), X is (batch, in_features), Y is (batch, out_features)
+            Y = output  # (batch, out_features)
+            X = inputs  # (batch, in_features)
+            W = module.weight.data  # (out_features, in_features)
+
+            # Calculate X - Y @ W where Y @ W has shape (batch, in_features)
+            # Then multiply by Y.T to get shape (in_features, out_features)
+            # Finally transpose to get (out_features, in_features) to match W
+            d_W = Y.T @ (X - Y @ W)  # (out_features, in_features)
+
+            d_W = self.normalize_fcn(d_W)
+            module.weight.data += d_W * self.learning_rate
+        return None
 
 
 def extract_kernel_patches(x, channels, kernel_size, stride, dilation, padding=0):
@@ -398,10 +458,16 @@ def extract_image_patches(x, channels, ndims):
 def _add_learning_parts(
     model, rule: LearningRule, hook: torch.utils.hooks.RemovableHandle | list
 ):
-    if not hasattr(model, "learning_hooks"):
-        setattr(model, "learning_hooks", [])
-    if not hasattr(model, "learning_rules"):
-        setattr(model, "learning_rules", [])
+    # Ensure hooks is always a list
+    if not hasattr(model, "learning_hooks") or not isinstance(
+        model.learning_hooks, list
+    ):
+        model.learning_hooks = []
+    if not hasattr(model, "learning_rules") or not isinstance(
+        model.learning_rules, list
+    ):
+        model.learning_rules = []
+
     if isinstance(hook, list):
         model.learning_hooks.extend(hook)
     else:
