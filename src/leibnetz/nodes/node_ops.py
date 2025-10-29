@@ -76,15 +76,15 @@ class ConvPass(nn.Module):
         # self.deformable = deformable
         if isinstance(norm_layer, str):
             try:
-                if norm_layer == "batch":
+                if "batch" in norm_layer.lower():
                     norm_layer = {2: nn.BatchNorm2d, 3: nn.BatchNorm3d}[
                         len(kernel_sizes[0])
                     ]
-                elif norm_layer == "instance":
+                elif "instance" in norm_layer.lower():
                     norm_layer = {2: nn.InstanceNorm2d, 3: nn.InstanceNorm3d}[
                         len(kernel_sizes[0])
                     ]
-                elif norm_layer == "group":
+                elif "group" in norm_layer.lower():
                     norm_layer = {2: nn.GroupNorm, 3: nn.GroupNorm}[
                         len(kernel_sizes[0])
                     ]

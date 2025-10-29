@@ -183,7 +183,7 @@ def build_subnet(
 
 
 # %%
-def build_scale_net(
+def build_scalenet(
     subnet_dict_list: list[dict] = [
         {"top_resolution": (32, 32, 32)},
         {"top_resolution": (8, 8, 8)},
@@ -212,8 +212,7 @@ def build_scale_net(
             **subnet_dict,
         )
         nodes.extend(subnet_nodes)
-        output = subnet_outputs.pop(f"{subnet_id}_output")
-        outputs[f"{subnet_id}_output"] = output
+        outputs[f"{subnet_id}_output"] = subnet_outputs.pop(f"{subnet_id}_output")
         bottleneck_input_dict = subnet_outputs
     network = LeibNet(nodes, outputs=outputs, name="ScaleNet")
     return network
@@ -225,7 +224,7 @@ def testing():
         {"top_resolution": (32, 32, 32)},
         {"top_resolution": (8, 8, 8)},
     ]
-    scalenet = build_scale_net(subnet_dict_list)
+    scalenet = build_scalenet(subnet_dict_list)
     param_num = 0
     for key, val in scalenet.named_parameters():
         print(f"{key}: {val.shape}")
