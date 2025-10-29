@@ -8,7 +8,7 @@ authors:
     given-names: "Larissa"
 title: "LeibNetz: A lightweight and modular library for rapidly developing and constructing PyTorch models for deep learning"
 version: 0.2.0
-date-released: 2025-10-29
+date-released: 2024-10-29
 url: "https://github.com/janelia-cellmap/LeibNetz"
 repository-code: "https://github.com/janelia-cellmap/LeibNetz"
 keywords:

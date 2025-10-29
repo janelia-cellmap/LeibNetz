@@ -39,11 +39,11 @@ jobs:
 
     - name: Format with black
       run: |
-        black src tests
+        black --check --diff src tests
 
     - name: Import sort with isort
       run: |
-        isort src tests
+        isort --check-only src tests
 
   test:
     name: ${{ matrix.platform }} (${{ matrix.python-version }})

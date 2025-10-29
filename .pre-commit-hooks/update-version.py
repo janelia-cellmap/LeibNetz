@@ -4,6 +4,7 @@ Pre-commit hook to update version in CITATION.cff before commit.
 This ensures the version is updated automatically when committing to main.
 """
 
+import re
 from datetime import datetime, timezone
 import os
 import subprocess
@@ -48,8 +49,6 @@ def update_citation_file(version):
             content = f.read()
 
         # Update version line
-        import re
-
         content = re.sub(
             r"^version: .*$", f"version: {version}", content, flags=re.MULTILINE
         )
