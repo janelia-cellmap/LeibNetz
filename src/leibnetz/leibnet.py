@@ -8,11 +8,7 @@ from torch.nn import Module
 import numpy as np
 from leibnetz.nodes import Node
 
-import os
-
 os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
-
-# from model_opt.apis import optimize
 
 import logging
 
@@ -20,6 +16,19 @@ logger = logging.getLogger(__name__)
 
 
 class LeibNet(Node):
+    """Main LeibNet class for composing neural network architectures from nodes.
+
+    LeibNet allows composing complex neural networks by connecting multiple Node objects
+    in a directed acyclic graph. It handles automatic shape propagation, device management,
+    and provides utilities for model export and visualization.
+
+    Args:
+        nodes: Iterable of Node or Module objects to compose into the network.
+        outputs: Dictionary mapping output keys to their shape specifications.
+        initialization: Weight initialization method (default: "kaiming").
+        name: Name identifier for the network (default: "LeibNet").
+    """
+
     def __init__(
         self,
         nodes: Iterable,
@@ -294,6 +303,18 @@ class LeibNet(Node):
         return node_scales_todo, scale_buffer
 
     def compute_shapes(self, outputs: dict[str, Sequence[Tuple]], set=True):
+        """Compute input shapes required for given output shapes.
+
+        Walks backwards through the network graph to determine input shapes
+        needed to produce the requested output shapes.
+
+        Args:
+            outputs: Dictionary of desired output shapes.
+            set: Whether to store computed shapes in the instance (default: True).
+
+        Returns:
+            tuple: (input_shapes, array_shapes) dictionaries.
+        """
         # walk backwards through graph to determine input shapes closest to requested output shapes
         shape_buffer = outputs.copy()
         for node in self.ordered_nodes[::-1]:
@@ -399,6 +420,11 @@ class LeibNet(Node):
     # TODO: Add specification for sending arrays to different devices during forward pass
     @property
     def devices(self):
+        """Get list of devices used by model parameters.
+
+        Returns:
+            list: List of devices used by model parameters.
+        """
         devices = []
         for parameters in self.parameters():
             devices.append(parameters.device)
@@ -415,18 +441,22 @@ class LeibNet(Node):
 
     @property
     def input_shapes(self):
+        """Get input shapes dictionary with shape and scale information."""
         return self._get_shapes(self._input_shapes)
 
     @property
     def output_shapes(self):
+        """Get output shapes dictionary with shape and scale information."""
         return self._get_shapes(self._output_shapes)
 
     @property
     def array_shapes(self):
+        """Get array shapes dictionary with shape and scale information."""
         return self._get_shapes(self._array_shapes)
 
     @property
     def param_num(self):
+        """Get total number of parameters in the model."""
         param_num = 0
         for key, val in self.named_parameters():
             # print(f"{key}: {val.shape}")
@@ -434,16 +464,21 @@ class LeibNet(Node):
         return param_num
 
     def mps(self):
+        """Move model to Apple Silicon MPS device if available."""
         if torch.backends.mps.is_available():
             self.to("mps")
         else:
             logger.error('Unable to move model to Apple Silicon ("mps")')
 
     def forward(self, inputs: dict[str, dict[str, Sequence[int | float]]]):
-        # function for forwarding data through the network
-        # inputs is a dictionary of tensors
-        # outputs is a dictionary of tensors
+        """Forward pass through the network.
 
+        Args:
+            inputs: Dictionary of input tensors, where keys match input_keys.
+
+        Returns:
+            dict: Dictionary of output tensors, where keys match output_keys.
+        """
         # initialize buffer
         if isinstance(inputs, dict):
             return_type = "dict"

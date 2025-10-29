@@ -6,6 +6,19 @@ from leibnetz.nodes.node_ops import ConvPass
 
 
 class ConvResampleNode(Node):
+    """Combined convolution and resampling node.
+
+    Combines convolution operations with resampling (upsampling/downsampling) in a single node.
+    Efficient for encoder-decoder architectures where both operations are needed.
+
+    Args:
+        input_keys: Input tensor keys.
+        output_keys: Output tensor keys.
+        scale_factor: Resampling scale factor (default: (1, 1, 1)).
+        kernel_sizes: Convolution kernel sizes.
+        input_nc: Number of input channels (default: 1).
+    """
+
     def __init__(
         self,
         input_keys,
@@ -72,11 +85,13 @@ class ConvResampleNode(Node):
 
     def get_input_from_output_shape(self, output_shape):
         """Calculate required input shape for given output shape"""
-        # TODO: Implement proper shape calculation based on convolution and sampling
-        # For now, return a placeholder implementation
-        output_shape = np.array(output_shape)
-        # Reverse the scaling operation
-        input_shape = output_shape / self.scale_factor
+        # Use the model's shape calculation if available
+        if hasattr(self.model, "get_input_from_output_shape"):
+            input_shape = self.model.get_input_from_output_shape(output_shape)
+        else:
+            # Fallback: reverse the scale factor
+            input_shape = np.array(output_shape) / np.array(self.scale_factor)
+
         return {
             key: (input_shape, self.scale / self.scale_factor)
             for key in self.input_keys
@@ -84,8 +99,11 @@ class ConvResampleNode(Node):
 
     def get_output_from_input_shape(self, input_shape):
         """Calculate output shape for given input shape"""
-        # TODO: Implement proper shape calculation based on convolution and sampling
-        # For now, return a placeholder implementation
-        input_shape = np.array(input_shape)
-        output_shape = input_shape * self.scale_factor
+        # Use the model's shape calculation if available
+        if hasattr(self.model, "get_output_from_input_shape"):
+            output_shape = self.model.get_output_from_input_shape(input_shape)
+        else:
+            # Fallback: apply the scale factor
+            output_shape = np.array(input_shape) * np.array(self.scale_factor)
+
         return {key: (output_shape.astype(int), self.scale) for key in self.output_keys}

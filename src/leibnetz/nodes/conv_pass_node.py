@@ -7,6 +7,23 @@ from leibnetz.nodes.node_ops import ConvPass
 
 # defines baseclass for all nodes in the network
 class ConvPassNode(Node):
+    """Convolutional pass node for applying convolution operations with optional activation.
+
+    Implements a sequence of convolutional layers with configurable activation functions,
+    normalization, and padding modes. Supports both 2D and 3D convolutions.
+
+    Args:
+        input_keys: Input tensor keys.
+        output_keys: Output tensor keys.
+        input_nc: Number of input channels.
+        output_nc: Number of output channels.
+        kernel_sizes: Convolution kernel sizes.
+        output_key_channels: Optional channel specification per output key.
+        activation: Activation function to use (default: "ReLU").
+        final_activation: Final activation function.
+        padding: Padding mode ("valid" or "same", default: "valid").
+    """
+
     def __init__(
         self,
         input_keys,

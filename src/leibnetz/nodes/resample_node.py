@@ -6,6 +6,18 @@ from leibnetz.nodes import Node
 
 
 class ResampleNode(Node):
+    """Resampling node for upsampling and downsampling operations.
+
+    Handles spatial resampling of feature maps using various interpolation modes.
+    Supports both upsampling and downsampling with configurable scale factors.
+
+    Args:
+        input_keys: Input tensor keys.
+        output_keys: Output tensor keys.
+        scale_factor: Scaling factor for each spatial dimension (default: (1, 1, 1)).
+        identifier: Optional unique identifier for the node.
+    """
+
     def __init__(
         self, input_keys, output_keys, scale_factor=(1, 1, 1), identifier=None
     ) -> None:

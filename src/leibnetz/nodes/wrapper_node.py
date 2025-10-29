@@ -5,6 +5,19 @@ from leibnetz.nodes import Node
 
 
 class WrapperNode(Node):
+    """Wrapper node for integrating existing PyTorch modules as LeibNetz nodes.
+
+    Allows wrapping arbitrary PyTorch modules to use them within the LeibNetz framework.
+    Provides shape calculation capabilities for wrapped modules and handles cropping operations.
+
+    Args:
+        model: PyTorch module to wrap.
+        input_keys: Input tensor keys.
+        output_keys: Output tensor keys.
+        identifier: Optional unique identifier for the node.
+        output_key_channels: Optional channel specification per output key.
+    """
+
     def __init__(
         self, model, input_keys, output_keys, identifier=None, output_key_channels=None
     ):
