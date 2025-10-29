@@ -43,7 +43,7 @@ model_kwargs = {
 }
 
 # Build the model
-model = leibnetz.build_scale_net(**model_kwargs)
+model = leibnetz.build_scalenet(**model_kwargs)
 
 # Get the arrays needed for training from the model
 input_arrays = model.input_shapes
