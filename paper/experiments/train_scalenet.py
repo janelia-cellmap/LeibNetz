@@ -56,7 +56,7 @@ target_array_info = model.output_shapes
 # Define the optimizer
 optimizer = optimizer(model.parameters())  # optimizer to use for training
 
-mini_batch_size = 16
+mini_batch_size = 8
 gradient_accumulation_steps = batch_size // mini_batch_size
 batch_size = mini_batch_size
 
