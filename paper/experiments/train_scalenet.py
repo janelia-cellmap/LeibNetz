@@ -49,8 +49,8 @@ model_kwargs = {
 model = leibnetz.build_scalenet(**model_kwargs)
 
 # Get the arrays needed for training from the model
-input_arrays = model.input_shapes
-target_arrays = model.output_shapes
+input_array_info = model.input_shapes
+target_array_info = model.output_shapes
 
 
 # Define the optimizer
