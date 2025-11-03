@@ -49,12 +49,16 @@ model_kwargs = {
 model = leibnetz.build_scalenet(**model_kwargs)
 
 # Get the arrays needed for training from the model
-input_arrays = model.input_shapes
-target_arrays = model.output_shapes
+input_array_info = model.input_shapes
+target_array_info = model.output_shapes
 
 
 # Define the optimizer
 optimizer = optimizer(model.parameters())  # optimizer to use for training
+
+mini_batch_size = 8
+gradient_accumulation_steps = batch_size // mini_batch_size
+batch_size = mini_batch_size
 
 if __name__ == "__main__":
     from cellmap_segmentation_challenge import train
