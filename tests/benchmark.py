@@ -2,8 +2,7 @@
 import torch
 from leibnetz.nets import build_unet as leibnetz_unet
 from funlib.learn.torch.models import UNet as funlib_unet
-# set flag to improve training speeds
-torch.backends.cudnn.benchmark = True
+torch.backends.cudnn.deterministic = True
 
 def benchmark():
     l_unet = leibnetz_unet()
