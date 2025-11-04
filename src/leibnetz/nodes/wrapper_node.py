@@ -1,6 +1,8 @@
 import math
+
 import numpy as np
 import torch
+
 from leibnetz.nodes import Node
 
 

@@ -1,8 +1,9 @@
 import numpy as np
 import torch
+
 from leibnetz.nodes import Node
-from leibnetz.nodes.resample_ops import Upsample, ConvDownsample
 from leibnetz.nodes.node_ops import ConvPass
+from leibnetz.nodes.resample_ops import ConvDownsample, Upsample
 
 
 class ConvResampleNode(Node):

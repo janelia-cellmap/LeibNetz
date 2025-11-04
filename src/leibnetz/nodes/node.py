@@ -1,5 +1,6 @@
 from abc import abstractmethod
 from typing import Any, Iterable, Sequence, Tuple
+
 import numpy as np
 from torch.nn import Module
 

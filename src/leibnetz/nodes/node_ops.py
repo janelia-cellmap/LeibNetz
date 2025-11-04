@@ -1,11 +1,10 @@
 from typing import Callable
-from torch import nn
-from torch import Tensor
-from torchvision.utils import _log_api_usage_once
-from torchvision.ops import SqueezeExcitation
 
 # from torchvision.ops import DeformConv2d
 import numpy as np
+from torch import Tensor, nn
+from torchvision.ops import SqueezeExcitation
+from torchvision.utils import _log_api_usage_once
 
 # from funlib.learn.torch.models.conv4d import Conv4d
 

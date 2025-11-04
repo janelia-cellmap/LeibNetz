@@ -1,12 +1,14 @@
+import os
+import tempfile
 import unittest
+from unittest.mock import MagicMock, patch
+
+import numpy as np
 import torch
 import torch.nn as nn
-import numpy as np
-import tempfile
-import os
-from unittest.mock import patch, MagicMock
+
 from leibnetz import LeibNet
-from leibnetz.nodes import ResampleNode, ConvPassNode, Node
+from leibnetz.nodes import ConvPassNode, Node, ResampleNode
 
 
 class TestLeibNet(unittest.TestCase):

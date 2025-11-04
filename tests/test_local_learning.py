@@ -1,22 +1,23 @@
 import unittest
+from unittest.mock import MagicMock, Mock, patch
+
+import numpy as np
 import torch
 import torch.nn as nn
-import numpy as np
-from unittest.mock import Mock, patch, MagicMock
 
+from leibnetz import LeibNet
 from leibnetz.local_learning import (
-    LearningRule,
     GeometricConsistencyRule,
     HebbsRule,
     KrotovsRule,
+    LearningRule,
     OjasRule,
-    extract_kernel_patches,
-    extract_image_patches,
-    convert_to_bio,
-    convert_to_backprop,
     _add_learning_parts,
+    convert_to_backprop,
+    convert_to_bio,
+    extract_image_patches,
+    extract_kernel_patches,
 )
-from leibnetz import LeibNet
 from leibnetz.nodes import ConvPassNode
 
 

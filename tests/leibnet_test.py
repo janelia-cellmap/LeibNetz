@@ -1,10 +1,11 @@
 # %%
 # Unit tests for the LeibNet architecture using the U-Net constructor
 
-import torch
-from leibnetz import LeibNet
-from leibnetz.nodes import ResampleNode, ConvPassNode
 import numpy as np
+import torch
+
+from leibnetz import LeibNet
+from leibnetz.nodes import ConvPassNode, ResampleNode
 
 
 def build_unet(

@@ -1,6 +1,7 @@
 # %%
-import logging
 from abc import ABC, abstractmethod
+import logging
+
 import torch
 
 from leibnetz import LeibNet

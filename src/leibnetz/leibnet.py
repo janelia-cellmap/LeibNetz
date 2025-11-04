@@ -1,11 +1,13 @@
 import os
 from typing import Iterable, Optional, Sequence, Tuple
+
 import networkx as nx
-import onnx2torch
-from torch import device
-import torch
-from torch.nn import Module
 import numpy as np
+import onnx2torch
+import torch
+from torch import device
+from torch.nn import Module
+
 from leibnetz.nodes import Node
 
 os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
