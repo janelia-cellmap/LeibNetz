@@ -1,5 +1,4 @@
 import numpy as np
-import torch
 
 from leibnetz.nodes import Node
 from leibnetz.nodes.node_ops import ConvPass

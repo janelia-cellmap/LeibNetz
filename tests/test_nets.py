@@ -1,8 +1,5 @@
 import unittest
 
-import numpy as np
-import torch
-
 from leibnetz import LeibNet
 from leibnetz.nets.attentive_scalenet import (
     build_attentive_scale_net,

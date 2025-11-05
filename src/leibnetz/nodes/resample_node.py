@@ -1,4 +1,4 @@
-from typing import Iterable, Sequence, Tuple
+from typing import Iterable, Sequence
 
 import numpy as np
 import torch

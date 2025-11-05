@@ -8,7 +8,7 @@ import torch
 import torch.nn as nn
 
 from leibnetz import LeibNet
-from leibnetz.nodes import ConvPassNode, Node, ResampleNode
+from leibnetz.nodes import ConvPassNode
 
 
 class TestLeibNet(unittest.TestCase):

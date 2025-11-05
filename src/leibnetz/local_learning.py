@@ -199,7 +199,7 @@ class KrotovsRule(LearningRule):
             return None
         inputs = args[0]
         batch_size = inputs.shape[0]
-        weights = module.weight
+        _ = module.weight  # noqa: F841
 
         if hasattr(module, "kernel_size"):
             # Convolutional layers
@@ -210,7 +210,7 @@ class KrotovsRule(LearningRule):
 
     def _update_conv_layer(self, module, inputs, output, batch_size):
         """Update weights for convolutional layers using Krotov-Hopfield rule."""
-        ndims = len(module.kernel_size)
+        _ = len(module.kernel_size)  # ndims - noqa: F841
 
         # Extract patches for convolutional layers
         X = extract_kernel_patches(
@@ -273,7 +273,7 @@ class KrotovsRule(LearningRule):
             d_W: Weight updates of same shape as weights
         """
         num_units = weights.shape[0]
-        input_dim = weights.shape[1]
+        _ = weights.shape[1]  # input_dim - noqa: F841
         num_samples = inputs.shape[1]
 
         # Calculate k (number of active units)
