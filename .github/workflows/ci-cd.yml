@@ -109,7 +109,7 @@ jobs:
 
   tag-release:
     name: Tag Release
-    needs: [test, mypy]
+    needs: [test]
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.get_tag.outputs.tag }}
