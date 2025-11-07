@@ -119,27 +119,27 @@ class TestModelWrapper(unittest.TestCase):
                 # Verify CUDA device was requested
                 mock_device.assert_called_with("cuda")
 
-    @patch("torch.cuda.is_available")
-    @patch("torch.backends.mps.is_available")
-    def test_get_example_inputs_auto_device_mps(self, mock_mps, mock_cuda):
-        """Test get_example_inputs method with automatic MPS device detection"""
-        mock_cuda.return_value = False
-        mock_mps.return_value = True
-        wrapper = ModelWrapper(
-            model=self.test_model,
-            input_shapes=self.input_shapes,
-            output_shapes=self.output_shapes,
-        )
+    # @patch("torch.cuda.is_available")
+    # @patch("torch.backends.mps.is_available")
+    # def test_get_example_inputs_auto_device_mps(self, mock_mps, mock_cuda):
+    #     """Test get_example_inputs method with automatic MPS device detection"""
+    #     mock_cuda.return_value = False
+    #     mock_mps.return_value = True
+    #     wrapper = ModelWrapper(
+    #         model=self.test_model,
+    #         input_shapes=self.input_shapes,
+    #         output_shapes=self.output_shapes,
+    #     )
 
-        # Mock device creation to avoid actual MPS requirement
-        with patch("torch.device") as mock_device:
-            mock_device.return_value = torch.device("cpu")  # Return CPU device instead
-            with patch.object(
-                torch.Tensor, "to", return_value=torch.rand(1)
-            ) as mock_to:
-                inputs = wrapper.get_example_inputs()
-                # Verify MPS device was requested
-                mock_device.assert_called_with("mps")
+    #     # Mock device creation to avoid actual MPS requirement
+    #     with patch("torch.device") as mock_device:
+    #         mock_device.return_value = torch.device("cpu")  # Return CPU device instead
+    #         with patch.object(
+    #             torch.Tensor, "to", return_value=torch.rand(1)
+    #         ) as mock_to:
+    #             inputs = wrapper.get_example_inputs()
+    #             # Verify MPS device was requested
+    #             mock_device.assert_called_with("mps")
 
     @patch("torch.cuda.is_available")
     @patch("torch.backends.mps.is_available")

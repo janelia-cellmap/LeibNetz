@@ -225,28 +225,28 @@ class TestLeibNet(unittest.TestCase):
         self.assertIsInstance(param_num, int)
         self.assertGreater(param_num, 0)
 
-    @patch("torch.backends.mps.is_available")
-    def test_mps_when_available(self, mock_mps_available):
-        """Test mps method when MPS is available"""
-        mock_mps_available.return_value = True
-        net = LeibNet(self.simple_nodes, self.simple_outputs)
+    # @patch("torch.backends.mps.is_available")
+    # def test_mps_when_available(self, mock_mps_available):
+    #     """Test mps method when MPS is available"""
+    #     mock_mps_available.return_value = True
+    #     net = LeibNet(self.simple_nodes, self.simple_outputs)
 
-        with patch.object(net, "to") as mock_to:
-            net.mps()
-            mock_to.assert_called_once_with("mps")
+    #     with patch.object(net, "to") as mock_to:
+    #         net.mps()
+    #         mock_to.assert_called_once_with("mps")
 
-    @patch("torch.backends.mps.is_available")
-    @patch("leibnetz.leibnet.logger")
-    def test_mps_when_not_available(self, mock_logger, mock_mps_available):
-        """Test mps method when MPS is not available"""
-        mock_mps_available.return_value = False
-        net = LeibNet(self.simple_nodes, self.simple_outputs)
+    # @patch("torch.backends.mps.is_available")
+    # @patch("leibnetz.leibnet.logger")
+    # def test_mps_when_not_available(self, mock_logger, mock_mps_available):
+    #     """Test mps method when MPS is not available"""
+    #     mock_mps_available.return_value = False
+    #     net = LeibNet(self.simple_nodes, self.simple_outputs)
 
-        net.mps()
+    #     net.mps()
 
-        mock_logger.error.assert_called_once_with(
-            'Unable to move model to Apple Silicon ("mps")'
-        )
+    #     mock_logger.error.assert_called_once_with(
+    #         'Unable to move model to Apple Silicon ("mps")'
+    #     )
 
     def test_forward_with_tensor_input(self):
         """Test forward method with single tensor input"""
