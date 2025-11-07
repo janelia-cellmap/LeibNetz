@@ -1,7 +1,8 @@
 if __name__ == "__main__":
     import os
-    from common import classes, force_all_classes, validation_prob, datasets, crops
+
     from cellmap_segmentation_challenge.utils.datasplit import make_datasplit_csv
+    from common import classes, crops, datasets, force_all_classes, validation_prob
 
     if not os.path.exists("datasplit.csv"):
         make_datasplit_csv(

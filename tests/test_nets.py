@@ -1,9 +1,7 @@
 import unittest
 
 from leibnetz import LeibNet
-from leibnetz.nets.attentive_scalenet import (
-    build_attentive_scale_net,
-)
+from leibnetz.nets.attentive_scalenet import build_attentive_scale_net
 from leibnetz.nets.attentive_scalenet import build_subnet as build_attentive_subnet
 from leibnetz.nets.scalenet import build_scalenet
 from leibnetz.nets.scalenet import build_subnet as build_scalenet_subnet

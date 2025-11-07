@@ -4,9 +4,9 @@ Pre-commit hook to update version in CITATION.cff before commit.
 This ensures the version is updated automatically when committing to main.
 """
 
-import re
 from datetime import datetime, timezone
 import os
+import re
 import subprocess
 import sys
 

@@ -1,14 +1,8 @@
 from cellmap_segmentation_challenge import train
+from common import batch_size, optimizer, random_seed, shared_kwargs, spatial_dims
 from upath import UPath
 
 import leibnetz
-from common import (
-    spatial_dims,
-    batch_size,
-    random_seed,
-    optimizer,
-    shared_kwargs,
-)
 
 model_to_load = model_name = (
     UPath(__file__).stem.removeprefix("train_") + f"_{random_seed}"

@@ -5,13 +5,12 @@ from cellmap_data import CellMapDataLoader, CellMapDataSplit
 
 # pip install git+https://github.com/janelia-cellmap/cellmap-train.git
 from cellmap_train.loss import BCELoss
+import matplotlib.pyplot as plt
+import torch
+from tqdm import tqdm
 
 # pip install git+https://github.com/janelia-cellmap/LeibNetz.git
 import leibnetz
-
-from tqdm import tqdm
-import torch
-import matplotlib.pyplot as plt
 
 classes = ["mito", "nuc", "er", "cell"]  # List of classes
 batch_size = 16  # Batch size

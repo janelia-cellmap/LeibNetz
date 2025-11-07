@@ -1,13 +1,10 @@
 import logging
 from typing import Iterable, Optional, Sequence, Tuple
 
-
 import networkx as nx
-import numpy as np
 import numpy as np
 import torch
 from torch.nn import Module
-
 
 from leibnetz.nodes import Node
 

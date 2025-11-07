@@ -1,10 +1,10 @@
 # %%
+import timeit
+
 from funlib.learn.torch.models import UNet as funlib_unet
 import torch
 
 from leibnetz.nets import build_unet as leibnetz_unet
-from funlib.learn.torch.models import UNet as funlib_unet
-import timeit
 
 torch.backends.cudnn.deterministic = True
 

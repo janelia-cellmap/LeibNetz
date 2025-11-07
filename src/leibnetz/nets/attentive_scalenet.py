@@ -4,11 +4,7 @@ from timeit import Timer
 import numpy as np
 
 from leibnetz import LeibNet
-from leibnetz.nodes import (
-    AdditiveAttentionGateNode,
-    ConvPassNode,
-    ResampleNode,
-)
+from leibnetz.nodes import AdditiveAttentionGateNode, ConvPassNode, ResampleNode
 
 
 def build_subnet(

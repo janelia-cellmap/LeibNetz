@@ -1,15 +1,15 @@
-import subprocess
 import os
-import torch
-import torchvision.transforms.v2 as T
+import subprocess
+
 from cellmap_data.transforms.augment import (
-    RandomContrast,
-    GaussianNoise,
     Binarize,
+    GaussianNoise,
     NaNtoNum,
     Normalize,
+    RandomContrast,
 )
-
+import torch
+import torchvision.transforms.v2 as T
 from upath import UPath
 
 # %% Set hyperparameters and other configurations
