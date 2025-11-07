@@ -156,8 +156,6 @@ def test_leibnet(device="cpu", **unet_kwargs):
 def test_leibnet_gpu():
     if torch.cuda.is_available():
         device = torch.device("cuda")
-    elif torch.backends.mps.is_available():
-        device = torch.device("mps")
     else:
         print("GPU not available.")
         return
