@@ -1,27 +1,27 @@
-import os
+import logging
 from typing import Iterable, Optional, Sequence, Tuple
+
 
 import networkx as nx
 import numpy as np
-import onnx2torch
+import numpy as np
 import torch
 from torch.nn import Module
 
+
 from leibnetz.nodes import Node
-
-os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
-
-import logging
 
 logger = logging.getLogger(__name__)
 
 
 class LeibNet(Node):
-    """Main LeibNet class for composing neural network architectures from nodes.
+    """
+    Main LeibNet class for composing neural network architectures from nodes.
 
-    LeibNet allows composing complex neural networks by connecting multiple Node objects
-    in a directed acyclic graph. It handles automatic shape propagation, device management,
-    and provides utilities for model export and visualization.
+    LeibNet allows composing complex neural networks by connecting multiple
+    Node objects in a directed acyclic graph. It handles automatic shape
+    propagation, device management, and provides utilities for model export and
+    visualization.
 
     Args:
         nodes: Iterable of Node or Module objects to compose into the network.
@@ -284,9 +284,10 @@ class LeibNet(Node):
                     break
                 else:
                     key = False
-            assert (
-                key
-            ), f'No output keys from node "{node.id}" in scale buffer. Please specify all outputs.'
+            assert key, (
+                f'No output keys from node "{node.id}" in scale buffer. '
+                "Please specify all outputs."
+            )
             scale = np.array(scale_buffer[key]).astype(int)
             if hasattr(node, "set_scale"):
                 node.set_scale(scale)
@@ -323,7 +324,8 @@ class LeibNet(Node):
         Returns:
             tuple: (input_shapes, array_shapes) dictionaries.
         """
-        # walk backwards through graph to determine input shapes closest to requested output shapes
+        # walk backwards through graph to determine input shapes
+        # closest to requested output shapes
         shape_buffer = outputs.copy()
         for node in self.ordered_nodes[::-1]:
             shape_buffer.update(
@@ -345,7 +347,7 @@ class LeibNet(Node):
             )
 
         # set dimensions
-        ndims_value = len(shape_buffer[self.output_keys[0]][0])
+        ndims_value = len(shape_buffer[list(self.output_keys)[0]][0])
         self._ndims = ndims_value
 
         # save output shapes
@@ -370,7 +372,8 @@ class LeibNet(Node):
     def compute_minimal_shapes(self):
         # analyze graph to determine minimal input/output shapes
         # first find minimal output shapes (1x1x1 at lowest scale)
-        # NOTE: expects the output_keys to come from nodes that have realworld unit scales (i.e. not classifications)
+        # NOTE: expects the output_keys to come from nodes that have
+        # realworld unit scales (i.e. not classifications)
         outputs = {}
         for key in self.output_keys:
             node = self.nodes_dict[self.output_to_node_id[key]]
@@ -392,7 +395,10 @@ class LeibNet(Node):
             target_arrays = {}
             for name, metadata in self.output_shapes.items():
                 target_arrays[name] = tuple(
-                    (tuple(s + step_size for s in metadata["shape"]), metadata["scale"])
+                    (
+                        tuple(s + step_size for s in metadata["shape"]),
+                        metadata["scale"],
+                    )
                 )
         self.compute_shapes(target_arrays, set=True)
 
@@ -413,13 +419,7 @@ class LeibNet(Node):
         # function for generating example inputs
         inputs = {}
         for k, v in self._input_shapes.items():
-            inputs[k] = torch.rand(
-                (
-                    1,
-                    1,
-                )
-                + tuple(v[0].astype(int))
-            )
+            inputs[k] = torch.rand((1, 1) + tuple(v[0].astype(int)))
         if device is not None:
             for k in inputs.keys():
                 inputs[k] = inputs[k].to(device)
@@ -496,7 +496,7 @@ class LeibNet(Node):
                 len(self.input_keys) == 1
             ), f"Incorrect number of inputs. Expected 1, got {len(inputs)}."
             return_type = "tensor"
-            buffer = {self.input_keys[0]: inputs}
+            buffer = {list(self.input_keys)[0]: inputs}
         elif not isinstance(inputs, dict):
             assert len(inputs) == len(
                 self.input_keys
@@ -519,7 +519,7 @@ class LeibNet(Node):
 
         # collect outputs
         if return_type == "tensor":
-            return buffer[self.output_keys[0]]
+            return buffer[list(self.output_keys)[0]]
         elif return_type == "list":
             return [buffer[key] for key in self.output_keys]
         else:
@@ -612,44 +612,9 @@ class LeibNet(Node):
         print(outstring)
         return outstring
 
-    # TODO: Make fully traceable :/
-    def trace(self, inputs: dict[str, torch.Tensor] = None):
-        logger.warning(
-            "Make sure you include inputs argument if you want to use non-minimum input shapes in traced model."
-        )
-        if inputs is None:
-            inputs = self.get_example_inputs()
-        self.traced_model = torch.jit.trace(
-            self, inputs, strict=False
-        )  # TODO: Verify strict=False works correctly
-        return self.traced_model
-
-    # def optimize(self):
-    #     from model_opt.apis import optimize
-    #     self.optimized_model = optimize(self, self.get_example_inputs())
-    #     return self.optimized_model
-
-    def export(self, path: str):
-        if path.endswith(".onnx"):
-            os.environ["TORCHDYNAMO_VERBOSE"] = "1"
-            os.environ["TORCH_LOGS"] = "+dynamo"
-            # onnx_model = torch.onnx.dynamo_export(
-            torch.onnx.export(
-                self,
-                kwargs={"inputs": self.get_example_inputs()},
-                f=path,
-                export_options=torch.onnx.ExportOptions(dynamic_shapes=True),
-            )
-            # onnx_model.save(path)
-        else:
-            torch.save(self, path)
-
     @staticmethod
     def load(path: str):
-        if path.endswith(".onnx"):
-            return onnx2torch.convert(path)
-        else:
-            return torch.load(path)
+        return torch.load(path)
 
     def __getitem__(self, key):
         if not hasattr(self, "heads"):

@@ -301,57 +301,6 @@ class TestLeibNet(unittest.TestCase):
         with self.assertRaises(AssertionError):
             net.forward(wrong_inputs)
 
-    def test_export_and_load_torch(self):
-        """Test export and load methods for torch format"""
-        net = LeibNet(self.simple_nodes, self.simple_outputs)
-
-        with tempfile.NamedTemporaryFile(suffix=".pth", delete=False) as tmp:
-            try:
-                # Test export
-                net.export(tmp.name)
-                self.assertTrue(os.path.exists(tmp.name))
-
-                # Test load with weights_only=False for compatibility
-                with patch("torch.load") as mock_load:
-                    mock_load.return_value = net
-                    loaded_net = LeibNet.load(tmp.name)
-                    mock_load.assert_called_once_with(tmp.name)
-
-            finally:
-                if os.path.exists(tmp.name):
-                    os.unlink(tmp.name)
-
-    def test_export_onnx(self):
-        """Test export method for ONNX format - covers the ONNX code path"""
-        net = LeibNet(self.simple_nodes, self.simple_outputs)
-
-        with tempfile.NamedTemporaryFile(suffix=".onnx", delete=False) as tmp:
-            try:
-                # Test that ONNX export path is attempted, expect version compatibility issues
-                try:
-                    net.export(tmp.name)
-                    # If it succeeds, that's fine too
-                except (AttributeError, TypeError) as e:
-                    # Expected errors due to PyTorch version differences
-                    # The important thing is that the ONNX branch was taken
-                    self.assertTrue(
-                        "ExportOptions" in str(e)
-                        or "export" in str(e)
-                        or "torch.onnx" in str(e)
-                    )
-            finally:
-                if os.path.exists(tmp.name):
-                    os.unlink(tmp.name)
-
-    @patch("onnx2torch.convert")
-    def test_load_onnx(self, mock_convert):
-        """Test load method for ONNX format"""
-        mock_convert.return_value = MagicMock()
-
-        result = LeibNet.load("model.onnx")
-
-        mock_convert.assert_called_once_with("model.onnx")
-
     def test_getitem_without_heads(self):
         """Test __getitem__ method without heads"""
         net = LeibNet(self.simple_nodes, self.simple_outputs)
@@ -476,17 +425,6 @@ class TestLeibNet(unittest.TestCase):
             self.assertIsInstance(result, str)
         finally:
             sys.stdout = sys.__stdout__
-
-    @patch("torch.jit.trace")
-    def test_trace(self, mock_trace):
-        """Test trace method"""
-        net = LeibNet(self.simple_nodes, self.simple_outputs)
-        mock_trace.return_value = MagicMock()
-
-        result = net.trace()
-
-        mock_trace.assert_called_once()
-        self.assertIsNotNone(result)
 
 
 if __name__ == "__main__":

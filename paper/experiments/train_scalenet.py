@@ -4,23 +4,8 @@ from upath import UPath
 import leibnetz
 from common import (
     spatial_dims,
-    learning_rate,
-    max_grad_norm,
     batch_size,
-    epochs,
-    iterations_per_epoch,
     random_seed,
-    classes,
-    load_model,
-    logs_save_path,
-    model_save_path,
-    datasplit_path,
-    spatial_transforms,
-    train_raw_value_transforms,
-    target_value_transforms,
-    use_mutual_exclusion,
-    force_all_classes,
-    validation_time_limit,
     optimizer,
     shared_kwargs,
 )
@@ -61,6 +46,4 @@ gradient_accumulation_steps = batch_size // mini_batch_size
 batch_size = mini_batch_size
 
 if __name__ == "__main__":
-    from cellmap_segmentation_challenge import train
-
     train(__file__)

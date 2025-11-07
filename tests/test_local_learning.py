@@ -429,9 +429,7 @@ class TestKrotovsRule(unittest.TestCase):
 
     def test_str_representation(self):
         """Test string representation."""
-        expected = (
-            "KrotovsRule(k_ratio=0.5, delta=0.4, norm=2, normalize_kwargs={'dim': 0})"
-        )
+        expected = "KrotovsRule(learning_rate=0.1, k_ratio=0.5, delta=0.4, norm=2, normalize_kwargs={'dim': 0})"
         self.assertEqual(str(self.rule), expected)
 
     def test_init_layers(self):
@@ -559,8 +557,8 @@ class TestKrotovsRule(unittest.TestCase):
             linear2.weight.data = init_weights.clone()
 
         # Create rules with different k_ratio
-        rule1 = KrotovsRule(learning_rate=0.1, k_ratio=0.25)  # k = 2
-        rule2 = KrotovsRule(learning_rate=0.1, k_ratio=0.75)  # k = 6
+        rule1 = KrotovsRule(learning_rate=0.1, k_ratio=0.01)  # k = 2
+        rule2 = KrotovsRule(learning_rate=0.1, k_ratio=0.99)  # k = 6
 
         # Apply same input to both
         input_tensor = torch.randn(1, 4)

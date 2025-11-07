@@ -62,7 +62,7 @@ mypy src/
 - **Model Wrapping**: Use ModelWrapper for model management and utilities
 
 ### Dependencies
-- **Core**: torch, numpy, onnx2torch
+- **Core**: torch, numpy
 - **Development**: pytest, pytest-cov, black, mypy
 - Python 3.10+ supported
 

@@ -5,7 +5,6 @@ import torchvision.transforms.v2 as T
 from cellmap_data.transforms.augment import (
     RandomContrast,
     GaussianNoise,
-    GaussianBlur,
     Binarize,
     NaNtoNum,
     Normalize,
@@ -30,9 +29,9 @@ logs_save_path = UPath(
     "tensorboard/{model_name}"
 ).path  # path to save the logs from tensorboard
 model_save_path = UPath(
-    "checkpoints/{model_name}_{epoch}.pth"  # path to save the model checkpoints
-).path
-datasplit_path = "datasplit.csv"  # path to the datasplit file that defines the train/val split the dataloader should use
+    "checkpoints/{model_name}_{epoch}.pth"
+).path  # path to save the model checkpoints
+datasplit_path = "datasplit.csv"  # path to the datasplit file
 
 # Define the spatial transformations to apply to the training data
 spatial_transforms = {  # dictionary of spatial transformations to apply to the data
@@ -71,12 +70,16 @@ crops = ["*"]
 # Set a limit to how long the validation can take
 validation_time_limit = 60  # time limit in seconds for the validation step
 
-optimizer = lambda params: torch.optim.RAdam(
-    params,
-    lr=learning_rate,
-    decoupled_weight_decay=True,
-    weight_decay=0.00025,
-)  # optimizer to use for training
+
+def optimizer(params):
+    """Optimizer to use for training."""
+    return torch.optim.RAdam(
+        params,
+        lr=learning_rate,
+        decoupled_weight_decay=True,
+        weight_decay=0.00025,
+    )
+
 
 # Define the common model hyperparameters
 shared_kwargs = {

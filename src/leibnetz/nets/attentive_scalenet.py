@@ -229,8 +229,4 @@ def testing():
     num, time = timer.autorange()
     print(f"Time per run: {time/num} seconds")
 
-    # %%
-    import torch
-
-    torch.onnx.dynamo_export(leibnet, inputs)
     return leibnet

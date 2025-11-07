@@ -11,6 +11,7 @@ import leibnetz
 
 from tqdm import tqdm
 import torch
+import matplotlib.pyplot as plt
 
 classes = ["mito", "nuc", "er", "cell"]  # List of classes
 batch_size = 16  # Batch size
@@ -60,7 +61,7 @@ datasplit = CellMapDataSplit(
     target_arrays,
     classes,
     pad=True,
-    csv_path="datasplit.csv",  # You need to provide this file (see cellmap_data.datasplit.make_datasplit_csv)
+    csv_path="datasplit.csv",  # You need to provide this file
 )
 
 # Define the loss function
@@ -119,7 +120,6 @@ for epoch in range(epochs):
 
 # %%
 # Plot the losses
-import matplotlib.pyplot as plt
 
 plt.plot(losses, xlabel="Step", ylabel="Loss")
 
