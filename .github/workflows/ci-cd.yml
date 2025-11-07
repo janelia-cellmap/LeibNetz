@@ -84,8 +84,6 @@ jobs:
           pip install -e .
           pip install -r requirements-dev.txt
       - name: Test
-        env:
-          METAL_DEVICE_VISIBLE: ""
         run: pytest --color=yes --cov --cov-report=xml --cov-report=term-missing
       - name: Coverage
         uses: codecov/codecov-action@v5
