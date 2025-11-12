@@ -12,22 +12,22 @@ In brief: "I’ve built a CNN utilizing chained UNets, such that the output of a
 # Info about the template:
 ## Description:
 
-The LaTex template in this folder presents an aesthetic and simple LaTeX style suitable for "preprint" publications such as arXiv and bio-arXiv, etc. 
+The LaTex template in this folder presents an aesthetic and simple LaTeX style suitable for "preprint" publications such as arXiv and bio-arXiv, etc.
 It is based on the [**nips_2018.sty**](https://media.nips.cc/Conferences/NIPS2018/Styles/nips_2018.sty) style.
 
 This styling maintains the esthetic of NIPS but adding and changing features to make it (IMO) even better and more suitable for preprints.
-The result looks fairly different from NIPS style so that readers won't get confused to think that the preprint was published in NIPS. 
+The result looks fairly different from NIPS style so that readers won't get confused to think that the preprint was published in NIPS.
 
-### Why NIPS? 
+### Why NIPS?
 Because the NIPS styling is a comfortable single column format that is very esthetic and convenient for reading.
 
 ## Usage:
-1. Use Document class **article**. 
+1. Use Document class **article**.
 2. Copy **arxiv.sty** to the folder containing your tex file.
 3. add `\usepackage{arxiv}` after `\documentclass{article}`.
 4. The only packages used in the style file are **geometry** and **fancyheader**. Do not reimport them.
 
-See **template.tex** 
+See **template.tex**
 
 ## Project files:
 1. **arxiv.sty** - the style file.
@@ -37,9 +37,9 @@ See **template.tex**
 
 
 ## Handling References when submitting to arXiv.org
-The most convenient way to manage references is using an external BibTeX file and pointing to it from the main file. 
-However, this requires running the [bibtex](http://www.bibtex.org/) tool to "compile" the `.bib` file and create `.bbl` file containing "bibitems" that can be directly inserted in the main tex file. 
-However, unfortunately the arXiv Tex environment ([Tex Live](https://www.tug.org/texlive/)) do not do that. 
+The most convenient way to manage references is using an external BibTeX file and pointing to it from the main file.
+However, this requires running the [bibtex](http://www.bibtex.org/) tool to "compile" the `.bib` file and create `.bbl` file containing "bibitems" that can be directly inserted in the main tex file.
+However, unfortunately the arXiv Tex environment ([Tex Live](https://www.tug.org/texlive/)) do not do that.
 So easiest way when submitting to arXiv is to create a single self-contained .tex file that contains the references.
 This can be done by running the BibTeX command on your machine and insert the content of the generated `.bbl` file into the `.tex` file and commenting out the `\bibliography{references}` that point to the external references file.
 

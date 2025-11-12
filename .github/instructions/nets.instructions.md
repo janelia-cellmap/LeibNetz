@@ -37,7 +37,7 @@ def build_network(input_channels, output_channels, **config):
     # Use configuration dictionaries for flexibility
     conv_config = config.get('conv_config', {})
     attention_config = config.get('attention_config', {})
-    
+
     # Build network with configurable components
     return LeibNet([...])
 ```

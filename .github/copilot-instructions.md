@@ -30,7 +30,7 @@ LeibNetz is a lightweight and modular library for rapidly developing and constru
 # Install in development mode
 pip install -e .
 
-# Install testing dependencies  
+# Install testing dependencies
 pip install pytest pytest-cov
 
 # Run tests
@@ -90,17 +90,17 @@ class MyCustomNode(Node):
     def __init__(self, ...):
         super().__init__()
         # Initialize your layers/operations
-    
+
     def forward(self, x):
         # Implement forward pass
         return output
-    
+
     def get_output_from_input_shape(self, input_shape):
         # Calculate output shape
         return output_shape
-    
+
     def get_input_from_output_shape(self, output_shape):
-        # Calculate required input shape  
+        # Calculate required input shape
         return input_shape
 ```
 
