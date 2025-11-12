@@ -5,12 +5,12 @@ from cellmap_data import CellMapDataLoader, CellMapDataSplit
 
 # pip install git+https://github.com/janelia-cellmap/cellmap-train.git
 from cellmap_train.loss import BCELoss
+import matplotlib.pyplot as plt
+import torch
+from tqdm import tqdm
 
 # pip install git+https://github.com/janelia-cellmap/LeibNetz.git
 import leibnetz
-
-from tqdm import tqdm
-import torch
 
 classes = ["mito", "nuc", "er", "cell"]  # List of classes
 batch_size = 16  # Batch size
@@ -60,7 +60,7 @@ datasplit = CellMapDataSplit(
     target_arrays,
     classes,
     pad=True,
-    csv_path="datasplit.csv",  # You need to provide this file (see cellmap_data.datasplit.make_datasplit_csv)
+    csv_path="datasplit.csv",  # You need to provide this file
 )
 
 # Define the loss function
@@ -119,7 +119,6 @@ for epoch in range(epochs):
 
 # %%
 # Plot the losses
-import matplotlib.pyplot as plt
 
 plt.plot(losses, xlabel="Step", ylabel="Loss")
 

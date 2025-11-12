@@ -1,6 +1,8 @@
 import math
+
 import numpy as np
 import torch
+
 from leibnetz.nodes import Node
 from leibnetz.nodes.node_ops import ConvPass
 
@@ -147,7 +149,7 @@ class AdditiveAttentionGateNode(Node):
             [x1.shape[-self.ndims :], g1.shape[-self.ndims :]], axis=0
         )
         assert len(smallest_shape) == self.ndims, (
-            f"Input shapes {[x1.shape,g1.shape]} have wrong dimensionality for node {self.id}, "
+            f"Input shapes {[x1.shape, g1.shape]} have wrong dimensionality for node {self.id}, "
             f"with expected inputs {self.input_keys} of dimensionality {self.ndims}"
         )
         # if np.all(x1.shape[-self.ndims :] != smallest_shape):

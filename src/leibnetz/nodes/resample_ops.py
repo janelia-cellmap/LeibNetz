@@ -1,8 +1,9 @@
+from logging import getLogger
+
 from torch import nn
 
 # from funlib.learn.torch.models.conv4d import Conv4d
 
-from logging import getLogger
 
 logger = getLogger(__name__)
 

@@ -1,13 +1,11 @@
 import unittest
-import torch
-import numpy as np
-from leibnetz.nets.unet import build_unet
-from leibnetz.nets.scalenet import build_subnet as build_scalenet_subnet, build_scalenet
-from leibnetz.nets.attentive_scalenet import (
-    build_subnet as build_attentive_subnet,
-    build_attentive_scale_net,
-)
+
 from leibnetz import LeibNet
+from leibnetz.nets.attentive_scalenet import build_attentive_scale_net
+from leibnetz.nets.attentive_scalenet import build_subnet as build_attentive_subnet
+from leibnetz.nets.scalenet import build_scalenet
+from leibnetz.nets.scalenet import build_subnet as build_scalenet_subnet
+from leibnetz.nets.unet import build_unet
 
 
 class TestUNet(unittest.TestCase):

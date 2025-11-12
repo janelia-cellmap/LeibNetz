@@ -1,26 +1,24 @@
-import os
+import logging
 from typing import Iterable, Optional, Sequence, Tuple
+
 import networkx as nx
-import onnx2torch
-from torch import device
+import numpy as np
 import torch
 from torch.nn import Module
-import numpy as np
+
 from leibnetz.nodes import Node
-
-os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
-
-import logging
 
 logger = logging.getLogger(__name__)
 
 
 class LeibNet(Node):
-    """Main LeibNet class for composing neural network architectures from nodes.
+    """
+    Main LeibNet class for composing neural network architectures from nodes.
 
-    LeibNet allows composing complex neural networks by connecting multiple Node objects
-    in a directed acyclic graph. It handles automatic shape propagation, device management,
-    and provides utilities for model export and visualization.
+    LeibNet allows composing complex neural networks by connecting multiple
+    Node objects in a directed acyclic graph. It handles automatic shape
+    propagation, device management, and provides utilities for model export and
+    visualization.
 
     Args:
         nodes: Iterable of Node or Module objects to compose into the network.
@@ -29,24 +27,16 @@ class LeibNet(Node):
         name: Name identifier for the network (default: "LeibNet").
     """
 
-    def __init__(
-        self,
-        nodes: Iterable,
-        outputs: dict[str, Sequence[Tuple]],
-        initialization="kaiming",
-        name="LeibNet",
-    ):
-        # We need to determine input_keys and output_keys before calling super().__init__
-        # First, let's process the nodes to determine the interface
+    def _determine_network_interface(self, nodes, outputs):
+        """Determine input and output keys from node structure."""
         temp_nodes = []
         for node in nodes:
-            if isinstance(node, (Node, Module)):  # Accept both Node and LeibNet
+            if isinstance(node, (Node, Module)):
                 temp_nodes.append(node)
             else:
                 msg = f"{node} is not a Node or LeibNet."
                 raise ValueError(msg)
 
-        # Determine input_keys and output_keys from the network structure
         all_input_keys = []
         all_output_keys = []
         internal_outputs = set()
@@ -58,44 +48,29 @@ class LeibNet(Node):
                 all_output_keys.extend(node.output_keys)
                 internal_outputs.update(node.output_keys)
 
-        # Network input_keys are those that are not produced by any internal node
         input_keys = [key for key in all_input_keys if key not in internal_outputs]
-        # Network output_keys are specified in the outputs parameter
         output_keys = list(outputs.keys())
 
-        # Initialize Node with the network's interface
-        super().__init__(
-            input_keys=input_keys, output_keys=output_keys, identifier=name
-        )
+        return input_keys, output_keys
 
-        # Override the Node attributes for LeibNet-specific values
-        self.color = "#0000FF"  # Blue color for LeibNet nodes
-        self._type = "leibnet"
-
+    def _process_nodes(self, nodes):
+        """Process and validate nodes list."""
         full_node_list = []
-
         for node in nodes:
-            if isinstance(node, Node):
-                full_node_list.append(node)
-            elif isinstance(node, LeibNet):
-                # Don't flatten! Treat LeibNet as a black-box node
-                # The LeibNet itself will be treated as a single node in the graph
+            if isinstance(node, (Node, LeibNet)):
                 full_node_list.append(node)
             else:
                 msg = f"{node} is not a Node or LeibNet."
                 raise ValueError(msg)
-        self.nodes = full_node_list
-        # Create nodes_dict with all nodes (LeibNets are treated as single nodes)
-        self.nodes_dict = torch.nn.ModuleDict({node.id: node for node in self.nodes})
-        self.graph = nx.DiGraph()
-        self.assemble(outputs)
-        self.initialization = initialization
+        return full_node_list
+
+    def _apply_weight_initialization(self, initialization):
+        """Apply weight initialization to the network."""
         if initialization == "kaiming":
             self.apply(
                 lambda m: (
                     torch.nn.init.kaiming_normal_(m.weight, mode="fan_out")
-                    if isinstance(m, torch.nn.Conv2d) or isinstance(m, torch.nn.Conv3d)
-                    # or isinstance(m, Conv4d)
+                    if isinstance(m, (torch.nn.Conv2d, torch.nn.Conv3d))
                     else None
                 )
             )
@@ -103,8 +78,7 @@ class LeibNet(Node):
             self.apply(
                 lambda m: (
                     torch.nn.init.xavier_normal_(m.weight)
-                    if isinstance(m, torch.nn.Conv2d) or isinstance(m, torch.nn.Conv3d)
-                    # or isinstance(m, Conv4d)
+                    if isinstance(m, (torch.nn.Conv2d, torch.nn.Conv3d))
                     else None
                 )
             )
@@ -112,23 +86,152 @@ class LeibNet(Node):
             self.apply(
                 lambda m: (
                     torch.nn.init.orthogonal_(m.weight)
-                    if isinstance(m, torch.nn.Conv2d) or isinstance(m, torch.nn.Conv3d)
-                    # or isinstance(m, Conv4d)
+                    if isinstance(m, (torch.nn.Conv2d, torch.nn.Conv3d))
                     else None
                 )
             )
-        elif initialization is None:
-            pass
-        else:
+        elif initialization is not None:
             raise ValueError(f"Unknown initialization {initialization}")
-        # if torch.cuda.is_available():
-        #     self.cuda()
-        # elif torch.backends.mps.is_available():
-        #     self.mps()
-        # else:
-        #     self.cpu()
+
+    def __init__(
+        self,
+        nodes: Iterable,
+        outputs: dict[str, Sequence[Tuple]],
+        initialization="kaiming",
+        name="LeibNet",
+    ):
+        # Determine network interface
+        input_keys, output_keys = self._determine_network_interface(nodes, outputs)
+
+        # Initialize parent Node class
+        super().__init__(
+            input_keys=input_keys, output_keys=output_keys, identifier=name
+        )
+
+        # Set LeibNet-specific attributes
+        self.color = "#0000FF"
+        self._type = "leibnet"
+
+        # Process and store nodes
+        self.nodes = self._process_nodes(nodes)
+        self.nodes_dict = torch.nn.ModuleDict({node.id: node for node in self.nodes})
+        self.graph = nx.DiGraph()
+
+        # Assemble the network
+        self.assemble(outputs)
+
+        # Apply weight initialization
+        self.initialization = initialization
+        self._apply_weight_initialization(initialization)
 
         self.name = name
+
+    def _validate_nodes_and_build_mapping(self):
+        """Validate nodes and build output-to-node mapping."""
+        node_ids = []
+        output_to_node_id = {}
+        for node in self.nodes:
+            if not isinstance(node, Node):
+                msg = f"{node} is not a Node."
+                raise ValueError(msg)
+            node_ids.append(node.id)
+            for output in node.output_keys:
+                if output in output_to_node_id:
+                    msg = f"Output {output} is not unique."
+                    raise ValueError(msg)
+                output_to_node_id[output] = node.id
+
+        if len(node_ids) != len(set(node_ids)):
+            msg = "Node identifiers are not unique."
+            raise ValueError(msg)
+
+        return output_to_node_id
+
+    def _build_graph_structure(self, output_to_node_id):
+        """Build the graph structure from nodes and edges."""
+        self.graph.add_nodes_from(self.nodes)
+
+        for node in self.nodes:
+            self.graph.nodes[node]["node_label"] = node.id
+            self.graph.nodes[node]["color"] = node.color
+            self.graph.nodes[node]["type"] = node._type
+            for input_key in node.input_keys:
+                if input_key in output_to_node_id:
+                    self.graph.add_edge(
+                        self.nodes_dict[output_to_node_id[input_key]], node
+                    )
+
+        if not nx.is_directed_acyclic_graph(self.graph):
+            msg = "Graph is not acyclic."
+            raise ValueError(msg)
+
+    def _identify_boundary_nodes(self):
+        """Identify input and output nodes in the graph."""
+        self.input_nodes = [
+            node for node in self.nodes if self.graph.in_degree(node) == 0
+        ]
+        self.output_nodes = [
+            node for node in self.nodes if self.graph.out_degree(node) == 0
+        ]
+
+        self._internal_input_nodes = self.input_nodes
+        self._internal_output_nodes = self.output_nodes
+
+        self._internal_input_keys = []
+        for node in self.input_nodes:
+            self._internal_input_keys += node.input_keys
+
+        self._internal_output_keys = []
+        for node in self.output_nodes:
+            self._internal_output_keys += node.output_keys
+
+    def _determine_execution_order(self):
+        """Determine the execution order and flushable arrays."""
+        self.ordered_nodes = list(nx.topological_sort(self.graph.reverse()))
+
+        self.flushable_arrays = [[] for _ in range(len(self.ordered_nodes))]
+        self.array_keys = []
+        flushed_arrays = []
+
+        for i, node in enumerate(self.ordered_nodes):
+            for input_key in node.input_keys:
+                if input_key not in self.array_keys:
+                    self.array_keys.append(input_key)
+                if (
+                    input_key not in flushed_arrays
+                    and input_key not in self.output_keys
+                ):
+                    self.flushable_arrays[i].append(input_key)
+                    flushed_arrays.append(input_key)
+
+        self.ordered_nodes = self.ordered_nodes[::-1]
+        self.flushable_arrays = self.flushable_arrays[::-1]
+
+    def _compute_node_scales(self, outputs):
+        """Compute scales for all nodes."""
+        scale_buffer = {key: val[1] for key, val in outputs.items()}
+        node_scales_todo = self.nodes.copy()
+        self.recurse_scales(self.output_nodes, node_scales_todo, scale_buffer)
+
+        all_scales = []
+        for node in self.ordered_nodes:
+            self.graph.nodes[node]["scale"] = node.scale
+            scales = [node.scale]
+            if node not in self.input_nodes:
+                ancestors = list(nx.ancestors(self.graph, node).copy())
+                for ancestor in ancestors:
+                    try:
+                        scales.append(ancestor.least_common_scale)
+                        for elder in nx.ancestors(self.graph, ancestor):
+                            if elder in ancestors:
+                                ancestors.remove(elder)
+                    except RuntimeError:
+                        scales.append(ancestor.scale)
+            scales = np.ceil(scales).astype(int)
+            scales = scales[scales.sum(axis=1) > 0]
+            node.set_least_common_scale(np.lcm.reduce(scales))
+            all_scales.extend(scales)
+        self.set_least_common_scale(np.lcm.reduce(all_scales))
 
     def assemble(self, outputs: dict[str, Sequence[Tuple]]):
         """
@@ -149,120 +252,22 @@ class LeibNet(Node):
         output_shapes : dict[str, Sequence[Tuple]]
             Dictionary of output keys and their corresponding shapes and scales
         """
+        # Validate nodes and build mapping
+        self.output_to_node_id = self._validate_nodes_and_build_mapping()
 
-        # verify that all nodes and edges are unique
-        node_ids = []
-        output_to_node_id = {}
-        for node in self.nodes:
-            if not isinstance(node, Node):
-                msg = f"{node} is not a Node."
-                raise ValueError(msg)
-            node_ids.append(node.id)
-            for output in node.output_keys:
-                if output in output_to_node_id:
-                    msg = f"Output {output} is not unique."
-                    raise ValueError(msg)
-                output_to_node_id[output] = node.id
-        self.output_to_node_id = output_to_node_id
+        # Build graph structure
+        self._build_graph_structure(self.output_to_node_id)
 
-        if len(node_ids) != len(set(node_ids)):
-            msg = "Node identifiers are not unique."
-            raise ValueError(msg)
+        # Identify boundary nodes
+        self._identify_boundary_nodes()
 
-        # add nodes to graph
-        self.graph.add_nodes_from(self.nodes)
+        # Determine execution order
+        self._determine_execution_order()
 
-        # add edges to graph
-        for node in self.nodes:
-            self.graph.nodes[node]["node_label"] = node.id
-            self.graph.nodes[node]["color"] = node.color
-            self.graph.nodes[node]["type"] = node._type
-            for input_key in node.input_keys:
-                if input_key in output_to_node_id:
-                    self.graph.add_edge(
-                        self.nodes_dict[output_to_node_id[input_key]], node
-                    )
-        # check if graph is acyclic
-        if not nx.is_directed_acyclic_graph(self.graph):
-            msg = "Graph is not acyclic."
-            raise ValueError(msg)
+        # Compute scales
+        self._compute_node_scales(outputs)
 
-        # collect input nodes for later use
-        self.input_nodes = [
-            node for node in self.nodes if self.graph.in_degree(node) == 0
-        ]
-        # collect output nodes for later use
-        self.output_nodes = [
-            node for node in self.nodes if self.graph.out_degree(node) == 0
-        ]
-
-        # input_keys and output_keys are set by Node.__init__ and represent the external interface; do not override with internal graph structure.
-
-        # Store internal input/output nodes for reference
-        self._internal_input_nodes = self.input_nodes
-        self._internal_output_nodes = self.output_nodes
-
-        # Calculate internal input/output keys for internal use
-        self._internal_input_keys = []
-        for node in self.input_nodes:
-            self._internal_input_keys += node.input_keys
-
-        self._internal_output_keys = []
-        for node in self.output_nodes:
-            self._internal_output_keys += node.output_keys
-
-        # determine quasi-optimal order of nodes (in reverse order)
-        self.ordered_nodes = list(nx.topological_sort(self.graph.reverse()))
-
-        # determine arrays that can be dropped after each node is run
-        self.flushable_arrays = [
-            [],
-        ] * len(self.ordered_nodes)
-        self.array_keys = []
-        flushed_arrays = []
-        for i, node in enumerate(self.ordered_nodes):
-            for input_key in node.input_keys:
-                if input_key not in self.array_keys:
-                    self.array_keys.append(input_key)
-                if (
-                    input_key not in flushed_arrays
-                    and input_key not in self.output_keys
-                ):
-                    self.flushable_arrays[i].append(input_key)
-                    flushed_arrays.append(input_key)
-
-        # correct order of lists
-        self.ordered_nodes = self.ordered_nodes[::-1]
-        self.flushable_arrays = self.flushable_arrays[::-1]
-
-        # set scales for each node (walking backwards from outputs)
-        scale_buffer = {key: val[1] for key, val in outputs.items()}
-        node_scales_todo = self.nodes.copy()
-        self.recurse_scales(self.output_nodes, node_scales_todo, scale_buffer)
-
-        # walk along input paths for each node to determine least common scale
-        all_scales = []
-        for node in self.ordered_nodes:
-            self.graph.nodes[node]["scale"] = node.scale
-            scales = [node.scale]
-            if node not in self.input_nodes:
-                ancestors = list(nx.ancestors(self.graph, node).copy())
-                for ancestor in ancestors:
-                    try:
-                        scales.append(ancestor.least_common_scale)
-                        for elder in nx.ancestors(self.graph, ancestor):
-                            if elder in ancestors:
-                                ancestors.remove(elder)
-                    except RuntimeError:
-                        scales.append(ancestor.scale)
-            scales = np.ceil(scales).astype(int)
-            scales = scales[scales.sum(axis=1) > 0]  # remove NaN scales
-            node.set_least_common_scale(np.lcm.reduce(scales))
-            all_scales.extend(scales)
-        self.set_least_common_scale(np.lcm.reduce(all_scales))
-
-        # Determine output shapes closest to requested output shapes,
-        # and determine corresponding input shapes
+        # Determine output and input shapes
         self._input_shapes, self._output_shapes = self.compute_shapes(outputs)
         self.min_input_shapes, self.min_output_shapes = self.compute_minimal_shapes()
 
@@ -276,9 +281,10 @@ class LeibNet(Node):
                     break
                 else:
                     key = False
-            assert (
-                key
-            ), f'No output keys from node "{node.id}" in scale buffer. Please specify all outputs.'
+            assert key, (
+                f'No output keys from node "{node.id}" in scale buffer. '
+                "Please specify all outputs."
+            )
             scale = np.array(scale_buffer[key]).astype(int)
             if hasattr(node, "set_scale"):
                 node.set_scale(scale)
@@ -315,7 +321,8 @@ class LeibNet(Node):
         Returns:
             tuple: (input_shapes, array_shapes) dictionaries.
         """
-        # walk backwards through graph to determine input shapes closest to requested output shapes
+        # walk backwards through graph to determine input shapes
+        # closest to requested output shapes
         shape_buffer = outputs.copy()
         for node in self.ordered_nodes[::-1]:
             shape_buffer.update(
@@ -337,7 +344,7 @@ class LeibNet(Node):
             )
 
         # set dimensions
-        ndims_value = len(shape_buffer[self.output_keys[0]][0])
+        ndims_value = len(shape_buffer[list(self.output_keys)[0]][0])
         self._ndims = ndims_value
 
         # save output shapes
@@ -362,7 +369,8 @@ class LeibNet(Node):
     def compute_minimal_shapes(self):
         # analyze graph to determine minimal input/output shapes
         # first find minimal output shapes (1x1x1 at lowest scale)
-        # NOTE: expects the output_keys to come from nodes that have realworld unit scales (i.e. not classifications)
+        # NOTE: expects the output_keys to come from nodes that have
+        # realworld unit scales (i.e. not classifications)
         outputs = {}
         for key in self.output_keys:
             node = self.nodes_dict[self.output_to_node_id[key]]
@@ -384,7 +392,10 @@ class LeibNet(Node):
             target_arrays = {}
             for name, metadata in self.output_shapes.items():
                 target_arrays[name] = tuple(
-                    (tuple(s + step_size for s in metadata["shape"]), metadata["scale"])
+                    (
+                        tuple(s + step_size for s in metadata["shape"]),
+                        metadata["scale"],
+                    )
                 )
         self.compute_shapes(target_arrays, set=True)
 
@@ -405,13 +416,7 @@ class LeibNet(Node):
         # function for generating example inputs
         inputs = {}
         for k, v in self._input_shapes.items():
-            inputs[k] = torch.rand(
-                (
-                    1,
-                    1,
-                )
-                + tuple(v[0].astype(int))
-            )
+            inputs[k] = torch.rand((1, 1) + tuple(v[0].astype(int)))
         if device is not None:
             for k in inputs.keys():
                 inputs[k] = inputs[k].to(device)
@@ -488,7 +493,7 @@ class LeibNet(Node):
                 len(self.input_keys) == 1
             ), f"Incorrect number of inputs. Expected 1, got {len(inputs)}."
             return_type = "tensor"
-            buffer = {self.input_keys[0]: inputs}
+            buffer = {list(self.input_keys)[0]: inputs}
         elif not isinstance(inputs, dict):
             assert len(inputs) == len(
                 self.input_keys
@@ -511,127 +516,102 @@ class LeibNet(Node):
 
         # collect outputs
         if return_type == "tensor":
-            return buffer[self.output_keys[0]]
+            return buffer[list(self.output_keys)[0]]
         elif return_type == "list":
             return [buffer[key] for key in self.output_keys]
         else:
             return {key: buffer[key] for key in self.output_keys}
 
     # @torch.jit.export
-    def to_mermaid(self, separate_arrays: bool = False, vertical: bool = False):
-        # function for converting network to mermaid graph
-        # NOTE: mermaid graphs can be rendered at https://mermaid-js.github.io/mermaid-live-editor/
-        def seps(_type):
-            if "downsample" in _type:
-                in_sep = "-.-"
-                out_sep = "-.->"
-            elif "upsample" in _type:
-                in_sep = "==="
-                out_sep = "==>"
-            else:
-                in_sep = "---"
-                out_sep = "-->"
-            return in_sep, out_sep
-
-        def shapes(_type):
-            if "upsample" in _type:
-                in_shape = "[/"
-                out_shape = "\\]"
-            elif "downsample" in _type:
-                in_shape = "[\\"
-                out_shape = "/]"
-            elif "attention" in _type:
-                in_shape = "{{"
-                out_shape = "}}"
-            else:
-                in_shape = "(["
-                out_shape = "])"
-            return in_shape, out_shape
-
-        if vertical:
-            outstring = "graph TD\n"
+    @staticmethod
+    def _mermaid_separators(_type):
+        """Get mermaid separator strings based on node type."""
+        if "downsample" in _type:
+            return "-.-", "-.->"
+        elif "upsample" in _type:
+            return "===", "==>"
         else:
-            outstring = "graph LR\n"
+            return "---", "-->"
+
+    @staticmethod
+    def _mermaid_shapes(_type):
+        """Get mermaid shape markers based on node type."""
+        if "upsample" in _type:
+            return "[/", "\\]"
+        elif "downsample" in _type:
+            return "[\\", "/]"
+        elif "attention" in _type:
+            return "{{", "}}"
+        else:
+            return "([", "])"
+
+    def _mermaid_add_nodes(self, outstring):
+        """Add node definitions to mermaid string."""
         for node in self.nodes:
-            s, e = shapes(node._type)
+            s, e = self._mermaid_shapes(node._type)
             outstring += f"\tnode-{node.id}{s}{node.id}{e}\n"
+        return outstring
+
+    def _mermaid_separate_arrays(self, outstring):
+        """Generate mermaid output with separate array nodes."""
+        for key in self.array_keys:
+            size_str = "x".join([str(int(s)) for s in self._array_shapes[key][0]])
+            outstring += f"\t{key}[{key}: {size_str}]\n"
+
+        for node in self.nodes:
+            in_sep, out_sep = self._mermaid_separators(node._type)
+            for input_key in node.input_keys:
+                scales = [f"{s}nm" for s in self._array_shapes[input_key][1]]
+                scale_str = "x".join(scales)
+                outstring += f"\tsubgraph {scale_str}\n"
+                outstring += f"\t\t{input_key}{in_sep}node-{node.id}\n"
+                outstring += "\tend\n"
+            for output_key in node.output_keys:
+                scales = [f"{s}nm" for s in self._array_shapes[output_key][1]]
+                scale_str = "x".join(scales)
+                outstring += f"\tsubgraph {scale_str}\n"
+                outstring += f"\t\tnode-{node.id}{out_sep}{output_key}\n"
+                outstring += "\tend\n"
+        return outstring
+
+    def _mermaid_connected_nodes(self, outstring):
+        """Generate mermaid output with connected nodes."""
+        for node in self.nodes:
+            for input_key in node.input_keys:
+                try:
+                    in_name = f"node-{self.output_to_node_id[input_key]}"
+                    _, out_sep = self._mermaid_separators(
+                        self.nodes_dict[self.output_to_node_id[input_key]]._type
+                    )
+                except KeyError:
+                    in_name = input_key
+                    out_sep = "-->"
+                scales = [f"{s}nm" for s in self._array_shapes[input_key][1]]
+                scale_str = "x".join(scales)
+                outstring += f"\tsubgraph {scale_str}\n"
+                outstring += f"\t\t{in_name}{out_sep}node-{node.id}\n"
+                outstring += "\tend\n"
+        return outstring
+
+    def to_mermaid(self, separate_arrays: bool = False, vertical: bool = False):
+        """Convert network to mermaid graph format.
+
+        NOTE: mermaid graphs can be rendered at https://mermaid-js.github.io/mermaid-live-editor/
+        """
+        outstring = "graph TD\n" if vertical else "graph LR\n"
+        outstring = self._mermaid_add_nodes(outstring)
+
         if separate_arrays:
-            for key in self.array_keys:
-                size_str = "x".join([str(int(s)) for s in self._array_shapes[key][0]])
-                outstring += f"\t{key}[{key}: {size_str}]\n"
-            for node in self.nodes:
-                in_sep, out_sep = seps(node._type)
-                for input_key in node.input_keys:
-                    scales = [f"{s}nm" for s in self._array_shapes[input_key][1]]
-                    scale_str = "x".join(scales)
-                    outstring += f"\tsubgraph {scale_str}\n"
-                    outstring += f"\t\t{input_key}{in_sep}node-{node.id}\n"
-                    outstring += "\tend\n"
-                for output_key in node.output_keys:
-                    scales = [f"{s}nm" for s in self._array_shapes[output_key][1]]
-                    scale_str = "x".join(scales)
-                    outstring += f"\tsubgraph {scale_str}\n"
-                    outstring += f"\t\tnode-{node.id}{out_sep}{output_key}\n"
-                    outstring += "\tend\n"
+            outstring = self._mermaid_separate_arrays(outstring)
         else:
-            for node in self.nodes:
-                for input_key in node.input_keys:
-                    try:
-                        in_name = f"node-{self.output_to_node_id[input_key]}"
-                        in_sep, out_sep = seps(
-                            self.nodes_dict[self.output_to_node_id[input_key]]._type
-                        )
-                        # outstring += f"\tsubgraph {self.nodes_dict[in_name].scale}\n"
-                    except KeyError:
-                        in_name = input_key
-                        out_sep = "-->"
-                    scales = [f"{s}nm" for s in self._array_shapes[input_key][1]]
-                    scale_str = "x".join(scales)
-                    outstring += f"\tsubgraph {scale_str}\n"
-                    outstring += f"\t\t{in_name}{out_sep}node-{node.id}\n"
-                    outstring += "\tend\n"
+            outstring = self._mermaid_connected_nodes(outstring)
 
         print(outstring)
         return outstring
 
-    # TODO: Make fully traceable :/
-    def trace(self, inputs: dict[str, torch.Tensor] = None):
-        logger.warning(
-            "Make sure you include inputs argument if you want to use non-minimum input shapes in traced model."
-        )
-        if inputs is None:
-            inputs = self.get_example_inputs()
-        self.traced_model = torch.jit.trace(
-            self, inputs, strict=False
-        )  # TODO: Verify strict=False works correctly
-        return self.traced_model
-
-    # def optimize(self):
-    #     from model_opt.apis import optimize
-    #     self.optimized_model = optimize(self, self.get_example_inputs())
-    #     return self.optimized_model
-
-    def export(self, path: str):
-        if path.endswith(".onnx"):
-            os.environ["TORCHDYNAMO_VERBOSE"] = "1"
-            os.environ["TORCH_LOGS"] = "+dynamo"
-            # onnx_model = torch.onnx.dynamo_export(
-            torch.onnx.export(
-                self,
-                kwargs={"inputs": self.get_example_inputs()},
-                f=path,
-                export_options=torch.onnx.ExportOptions(dynamic_shapes=True),
-            )
-            # onnx_model.save(path)
-        else:
-            torch.save(self, path)
-
     @staticmethod
     def load(path: str):
-        if path.endswith(".onnx"):
-            return onnx2torch.convert(path)
-        else:
-            return torch.load(path)
+        return torch.load(path)
 
     def __getitem__(self, key):
         if not hasattr(self, "heads"):

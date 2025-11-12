@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+  - family-names: "Rhoades"
+    given-names: "Jeff"
+    email: "rhoadesj@hhmi.org"
+  - family-names: "Heinrich"
+    given-names: "Larissa"
+title: "LeibNetz: A lightweight and modular library for rapidly developing and constructing PyTorch models for deep learning"
+version: 0.2.0
+date-released: 2024-10-29
+url: "https://github.com/janelia-cellmap/LeibNetz"
+repository-code: "https://github.com/janelia-cellmap/LeibNetz"
+keywords:
+  - image-segmentation
+  - convolutional-neural-networks
+  - deep-learning
+  - pytorch
+license: MIT

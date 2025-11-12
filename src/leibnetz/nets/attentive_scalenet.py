@@ -1,12 +1,10 @@
 # %%
 from timeit import Timer
-from leibnetz import LeibNet
-from leibnetz.nodes import (
-    ResampleNode,
-    ConvPassNode,
-    AdditiveAttentionGateNode,
-)
+
 import numpy as np
+
+from leibnetz import LeibNet
+from leibnetz.nodes import AdditiveAttentionGateNode, ConvPassNode, ResampleNode
 
 
 def build_subnet(
@@ -227,8 +225,4 @@ def testing():
     num, time = timer.autorange()
     print(f"Time per run: {time/num} seconds")
 
-    # %%
-    import torch
-
-    torch.onnx.dynamo_export(leibnet, inputs)
     return leibnet

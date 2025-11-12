@@ -1,7 +1,9 @@
 import unittest
+
+import numpy as np
 import torch
 import torch.nn as nn
-import numpy as np
+
 from leibnetz.nodes.wrapper_node import WrapperNode
 
 

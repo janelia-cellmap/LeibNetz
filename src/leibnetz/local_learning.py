@@ -1,6 +1,7 @@
 # %%
-import logging
 from abc import ABC, abstractmethod
+import logging
+
 import torch
 
 from leibnetz import LeibNet
@@ -26,7 +27,9 @@ class LearningRule(ABC):
 
 class GeometricConsistencyRule(LearningRule):
     """
-    Implements a geometric consistency local learning rule per module. Only implemented for convolutional layers.
+    Implements a geometric consistency local learning rule per module.
+
+    Only implemented for convolutional layers.
     """
 
     name: str = "GeometricConsistencyRule"
@@ -44,7 +47,10 @@ class GeometricConsistencyRule(LearningRule):
         self.optimizer_kwargs = optimizer_kwargs
 
     def __str__(self):
-        return f"GeometricConsistencyRule(learning_rate={self.learning_rate}, optimizer={self.optimizer}, optimizer_kwargs={self.optimizer_kwargs})"
+        return (
+            f"GeometricConsistencyRule(learning_rate={self.learning_rate}, "
+            f"optimizer={self.optimizer}, optimizer_kwargs={self.optimizer_kwargs})"
+        )
 
     def init_layers(self, layer):
         if hasattr(layer, "weight"):
@@ -186,7 +192,10 @@ class KrotovsRule(LearningRule):
         self.precision = precision
 
     def __str__(self):
-        return f"KrotovsRule(k_ratio={self.k_ratio}, delta={self.delta}, norm={self.norm}, normalize_kwargs={self.normalize_kwargs})"
+        return (
+            f"KrotovsRule(learning_rate={self.learning_rate}, "
+            f"k_ratio={self.k_ratio}, delta={self.delta}, norm={self.norm}, normalize_kwargs={self.normalize_kwargs})"
+        )
 
     def init_layers(self, layer):
         if hasattr(layer, "weight"):
@@ -198,7 +207,6 @@ class KrotovsRule(LearningRule):
             return None
         inputs = args[0]
         batch_size = inputs.shape[0]
-        weights = module.weight
 
         if hasattr(module, "kernel_size"):
             # Convolutional layers
@@ -209,7 +217,7 @@ class KrotovsRule(LearningRule):
 
     def _update_conv_layer(self, module, inputs, output, batch_size):
         """Update weights for convolutional layers using Krotov-Hopfield rule."""
-        ndims = len(module.kernel_size)
+        _ = len(module.kernel_size)  # ndims - noqa: F841
 
         # Extract patches for convolutional layers
         X = extract_kernel_patches(
@@ -261,82 +269,20 @@ class KrotovsRule(LearningRule):
         return None
 
     def _krotov_update(self, weights, inputs):
-        """
-        Core Krotov-Hopfield learning rule implementation.
-
-        Args:
-            weights: (num_units, input_dim) weight matrix
-            inputs: (input_dim, num_samples) input matrix
-
-        Returns:
-            d_W: Weight updates of same shape as weights
-        """
-        num_units = weights.shape[0]
-        input_dim = weights.shape[1]
-        num_samples = inputs.shape[1]
-
-        # Calculate k (number of active units)
-        k = max(1, int(self.k_ratio * num_units))
-
-        # Calculate overlaps between weights and inputs
-        # weights: (num_units, input_dim), inputs: (input_dim, num_samples)
-        # overlaps: (num_units, num_samples)
-        if self.norm == 2:
-            # L2 norm case (most common)
-            overlaps = weights @ inputs  # (num_units, num_samples)
-        else:
-            # General Lp norm case
-            weight_norms = torch.sign(weights) * torch.abs(weights) ** (self.norm - 1)
-            overlaps = weight_norms @ inputs
-
-        # Initialize weight updates
-        d_W = torch.zeros_like(weights)
-
-        # Process each sample independently
-        for sample_idx in range(num_samples):
-            sample_input = inputs[:, sample_idx]  # (input_dim,)
-            sample_overlaps = overlaps[:, sample_idx]  # (num_units,)
-
-            # Find top-k active units for this sample
-            _, top_k_indices = torch.topk(sample_overlaps, k)
-
-            # Create activation pattern
-            activations = torch.zeros(num_units, device=weights.device)
-
-            # Set activations for top-k units
-            for i, unit_idx in enumerate(top_k_indices):
-                if i == 0:
-                    # Winner (most active unit) gets positive activation
-                    activations[unit_idx] = 1.0
-                elif i == k - 1:
-                    # Last active unit gets anti-Hebbian activation
-                    activations[unit_idx] = -self.delta
-                # Other units remain at 0
-
-            # Apply learning rule: d_W = activations * input - activations * weights * activation_strength
-            for unit_idx in range(num_units):
-                if activations[unit_idx] != 0:
-                    activation = activations[unit_idx]
-                    current_weight = weights[unit_idx, :]
-
-                    # Hebbian term: activation * input
-                    hebbian_term = activation * sample_input
-
-                    # Anti-Hebbian term: activation * current_weight * overlap
-                    overlap_strength = sample_overlaps[unit_idx]
-                    anti_hebbian_term = activation * overlap_strength * current_weight
-
-                    # Combine terms
-                    unit_update = hebbian_term - anti_hebbian_term
-
-                    # Accumulate update (average over samples)
-                    d_W[unit_idx, :] += unit_update / num_samples
-
-        # Normalize updates to prevent explosion
-        update_norm = torch.max(torch.abs(d_W))
-        if update_norm > self.precision:
-            d_W = d_W / update_norm
-
+        activations = torch.tanh(weights @ inputs)  # (num_units, num_samples)
+        k = max(1, int(self.k_ratio * activations.shape[0]))
+        # For each sample, find top-k units
+        topk_mask = torch.zeros_like(activations)
+        topk_indices = activations.topk(k, dim=0).indices  # (k, num_samples)
+        for i in range(activations.shape[1]):
+            topk_mask[topk_indices[:, i], i] = 1
+        # Mask activations
+        masked_activations = activations * topk_mask
+        # Use masked_activations in the update
+        d_W = masked_activations @ inputs.T - 0.5 * (
+            masked_activations @ torch.ones_like(inputs.T)
+            + torch.ones_like(masked_activations) @ inputs.T
+        )
         return d_W
 
 

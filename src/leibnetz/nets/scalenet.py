@@ -1,8 +1,10 @@
 # %%
 from timeit import Timer
-from leibnetz import LeibNet
-from leibnetz.nodes import ResampleNode, ConvPassNode
+
 import numpy as np
+
+from leibnetz import LeibNet
+from leibnetz.nodes import ConvPassNode, ResampleNode
 
 
 def build_subnet(

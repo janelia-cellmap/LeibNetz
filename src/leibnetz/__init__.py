@@ -1,11 +1,11 @@
 from .leibnet import LeibNet
-from .nets import build_unet, build_scalenet, build_attentive_scale_net
-from .model_wrapper import ModelWrapper
 from .local_learning import (
-    convert_to_bio,
-    convert_to_backprop,
+    GeometricConsistencyRule,
     HebbsRule,
     KrotovsRule,
     OjasRule,
-    GeometricConsistencyRule,
+    convert_to_backprop,
+    convert_to_bio,
 )
+from .model_wrapper import ModelWrapper
+from .nets import build_attentive_scale_net, build_scalenet, build_unet

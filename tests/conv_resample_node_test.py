@@ -1,6 +1,8 @@
 import unittest
-import torch
+
 import numpy as np
+import torch
+
 from leibnetz.nodes.conv_resample_node import ConvResampleNode
 
 

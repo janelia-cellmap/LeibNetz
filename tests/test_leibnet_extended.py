@@ -1,12 +1,12 @@
 import unittest
+from unittest.mock import MagicMock  # , patch
+
+import numpy as np
 import torch
 import torch.nn as nn
-import numpy as np
-import tempfile
-import os
-from unittest.mock import patch, MagicMock
+
 from leibnetz import LeibNet
-from leibnetz.nodes import ResampleNode, ConvPassNode, Node
+from leibnetz.nodes import ConvPassNode
 
 
 class TestLeibNet(unittest.TestCase):
@@ -225,28 +225,28 @@ class TestLeibNet(unittest.TestCase):
         self.assertIsInstance(param_num, int)
         self.assertGreater(param_num, 0)
 
-    @patch("torch.backends.mps.is_available")
-    def test_mps_when_available(self, mock_mps_available):
-        """Test mps method when MPS is available"""
-        mock_mps_available.return_value = True
-        net = LeibNet(self.simple_nodes, self.simple_outputs)
+    # @patch("torch.backends.mps.is_available")
+    # def test_mps_when_available(self, mock_mps_available):
+    #     """Test mps method when MPS is available"""
+    #     mock_mps_available.return_value = True
+    #     net = LeibNet(self.simple_nodes, self.simple_outputs)
 
-        with patch.object(net, "to") as mock_to:
-            net.mps()
-            mock_to.assert_called_once_with("mps")
+    #     with patch.object(net, "to") as mock_to:
+    #         net.mps()
+    #         mock_to.assert_called_once_with("mps")
 
-    @patch("torch.backends.mps.is_available")
-    @patch("leibnetz.leibnet.logger")
-    def test_mps_when_not_available(self, mock_logger, mock_mps_available):
-        """Test mps method when MPS is not available"""
-        mock_mps_available.return_value = False
-        net = LeibNet(self.simple_nodes, self.simple_outputs)
+    # @patch("torch.backends.mps.is_available")
+    # @patch("leibnetz.leibnet.logger")
+    # def test_mps_when_not_available(self, mock_logger, mock_mps_available):
+    #     """Test mps method when MPS is not available"""
+    #     mock_mps_available.return_value = False
+    #     net = LeibNet(self.simple_nodes, self.simple_outputs)
 
-        net.mps()
+    #     net.mps()
 
-        mock_logger.error.assert_called_once_with(
-            'Unable to move model to Apple Silicon ("mps")'
-        )
+    #     mock_logger.error.assert_called_once_with(
+    #         'Unable to move model to Apple Silicon ("mps")'
+    #     )
 
     def test_forward_with_tensor_input(self):
         """Test forward method with single tensor input"""
@@ -298,57 +298,6 @@ class TestLeibNet(unittest.TestCase):
 
         with self.assertRaises(AssertionError):
             net.forward(wrong_inputs)
-
-    def test_export_and_load_torch(self):
-        """Test export and load methods for torch format"""
-        net = LeibNet(self.simple_nodes, self.simple_outputs)
-
-        with tempfile.NamedTemporaryFile(suffix=".pth", delete=False) as tmp:
-            try:
-                # Test export
-                net.export(tmp.name)
-                self.assertTrue(os.path.exists(tmp.name))
-
-                # Test load with weights_only=False for compatibility
-                with patch("torch.load") as mock_load:
-                    mock_load.return_value = net
-                    loaded_net = LeibNet.load(tmp.name)
-                    mock_load.assert_called_once_with(tmp.name)
-
-            finally:
-                if os.path.exists(tmp.name):
-                    os.unlink(tmp.name)
-
-    def test_export_onnx(self):
-        """Test export method for ONNX format - covers the ONNX code path"""
-        net = LeibNet(self.simple_nodes, self.simple_outputs)
-
-        with tempfile.NamedTemporaryFile(suffix=".onnx", delete=False) as tmp:
-            try:
-                # Test that ONNX export path is attempted, expect version compatibility issues
-                try:
-                    net.export(tmp.name)
-                    # If it succeeds, that's fine too
-                except (AttributeError, TypeError) as e:
-                    # Expected errors due to PyTorch version differences
-                    # The important thing is that the ONNX branch was taken
-                    self.assertTrue(
-                        "ExportOptions" in str(e)
-                        or "export" in str(e)
-                        or "torch.onnx" in str(e)
-                    )
-            finally:
-                if os.path.exists(tmp.name):
-                    os.unlink(tmp.name)
-
-    @patch("onnx2torch.convert")
-    def test_load_onnx(self, mock_convert):
-        """Test load method for ONNX format"""
-        mock_convert.return_value = MagicMock()
-
-        result = LeibNet.load("model.onnx")
-
-        mock_convert.assert_called_once_with("model.onnx")
 
     def test_getitem_without_heads(self):
         """Test __getitem__ method without heads"""
@@ -474,17 +423,6 @@ class TestLeibNet(unittest.TestCase):
             self.assertIsInstance(result, str)
         finally:
             sys.stdout = sys.__stdout__
-
-    @patch("torch.jit.trace")
-    def test_trace(self, mock_trace):
-        """Test trace method"""
-        net = LeibNet(self.simple_nodes, self.simple_outputs)
-        mock_trace.return_value = MagicMock()
-
-        result = net.trace()
-
-        mock_trace.assert_called_once()
-        self.assertIsNotNone(result)
 
 
 if __name__ == "__main__":
