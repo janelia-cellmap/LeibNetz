@@ -88,7 +88,7 @@ jobs:
       - name: Coverage
         uses: codecov/codecov-action@v5
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
+          token: ${{ secrets.CODECOV }}
 
   # mypy:
   #   name: Type checking (mypy)
