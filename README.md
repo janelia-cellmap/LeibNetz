@@ -255,7 +255,6 @@ If you use LeibNetz in your research, please cite:
   author = {Jeff Rhoades and Larissa Heinrich},
   title = {LeibNetz: A Lightweight and Modular Library for Deep Learning},
   url = {https://github.com/janelia-cellmap/LeibNetz},
-  version = {0.2.0},
   year = {2024}
 }
 ```
