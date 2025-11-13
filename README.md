@@ -1,6 +1,6 @@
 # LeibNetz
 
-![GitHub - License](https://img.shields.io/github/license/janelia-cellmap/LeibNetz)
+![PyPI - License](https://img.shields.io/pypi/l/LeibNetz)
 [![CI/CD Pipeline](https://github.com/janelia-cellmap/LeibNetz/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/janelia-cellmap/LeibNetz/actions/workflows/ci-cd.yml)
 [![codecov](https://codecov.io/github/janelia-cellmap/LeibNetz/graph/badge.svg?token=PPT4ZNZZCJ)](https://codecov.io/github/janelia-cellmap/LeibNetz)
 [![PyPI - Version](https://img.shields.io/pypi/v/leibnetz)](https://pypi.org/project/leibnetz/)
@@ -244,7 +244,7 @@ isort src/
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the BSD-3 License - see the [LICENSE](https://github.com/janelia-cellmap/LeibNetz/blob/main/LICENSE) file for details.
 
 ## Citation
 
