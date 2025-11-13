@@ -12,7 +12,7 @@ import webbrowser
 from pathlib import Path
 
 
-def serve_ui(port: int = 8080, open_browser: bool = True):
+def serve_ui(port: int = 8080, open_browser: bool = True) -> None:
     """
     Start an HTTP server to serve the network builder UI.
 

@@ -73,6 +73,13 @@ class NetworkBuilder {
         this.init();
     }
 
+    // HTML escape function to prevent XSS
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
     init() {
         this.resizeCanvas();
         window.addEventListener('resize', () => this.resizeCanvas());
@@ -354,8 +361,8 @@ class NetworkBuilder {
         const def = this.nodeDefinitions[node.type];
         let html = `
             <div style="margin-bottom: 20px;">
-                <h3 style="margin-bottom: 10px; color: ${node.color};">${node.name}</h3>
-                <div style="font-size: 12px; color: #7f8c8d; margin-bottom: 15px;">${node.type}</div>
+                <h3 style="margin-bottom: 10px; color: ${this.escapeHtml(node.color)};">${this.escapeHtml(node.name)}</h3>
+                <div style="font-size: 12px; color: #7f8c8d; margin-bottom: 15px;">${this.escapeHtml(node.type)}</div>
                 <button class="btn btn-danger" style="width: 100%;" onclick="app.deleteNode(app.selectedNode)">
                     Delete Node
                 </button>
@@ -364,29 +371,29 @@ class NetworkBuilder {
 
         for (const [key, prop] of Object.entries(def.properties)) {
             html += '<div class="form-group">';
-            html += `<label class="form-label">${prop.label}</label>`;
+            html += `<label class="form-label">${this.escapeHtml(prop.label)}</label>`;
 
             if (prop.type === 'number') {
-                html += `<input type="number" class="form-input" value="${node.properties[key]}" 
-                    onchange="app.updateNodeProperty('${key}', this.value, 'number')">`;
+                html += `<input type="number" class="form-input" value="${this.escapeHtml(String(node.properties[key]))}" 
+                    onchange="app.updateNodeProperty('${this.escapeHtml(key)}', this.value, 'number')">`;
             } else if (prop.type === 'text') {
-                html += `<input type="text" class="form-input" value="${node.properties[key]}" 
-                    onchange="app.updateNodeProperty('${key}', this.value, 'text')">`;
+                html += `<input type="text" class="form-input" value="${this.escapeHtml(String(node.properties[key]))}" 
+                    onchange="app.updateNodeProperty('${this.escapeHtml(key)}', this.value, 'text')">`;
             } else if (prop.type === 'select') {
-                html += `<select class="form-select" onchange="app.updateNodeProperty('${key}', this.value, 'select')">`;
+                html += `<select class="form-select" onchange="app.updateNodeProperty('${this.escapeHtml(key)}', this.value, 'select')">`;
                 for (const option of prop.options) {
                     const selected = node.properties[key] === option ? 'selected' : '';
-                    html += `<option value="${option}" ${selected}>${option}</option>`;
+                    html += `<option value="${this.escapeHtml(option)}" ${selected}>${this.escapeHtml(option)}</option>`;
                 }
                 html += '</select>';
             } else if (prop.type === 'checkbox') {
                 const checked = node.properties[key] ? 'checked' : '';
                 html += `<input type="checkbox" ${checked} 
-                    onchange="app.updateNodeProperty('${key}', this.checked, 'checkbox')">`;
+                    onchange="app.updateNodeProperty('${this.escapeHtml(key)}', this.checked, 'checkbox')">`;
             }
 
             if (prop.help) {
-                html += `<div class="help-text">${prop.help}</div>`;
+                html += `<div class="help-text">${this.escapeHtml(prop.help)}</div>`;
             }
             html += '</div>';
         }
