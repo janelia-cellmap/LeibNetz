@@ -1,6 +1,88 @@
 [build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[project]
+name = "leibnetz"
+dynamic = ["version"]
+description = "A lightweight and modular library for rapidly developing and constructing PyTorch models for deep learning."
+readme = "README.md"
+license = { text = "BSD-3-Clause" }
+authors = [
+    { name = "Jeff Rhoades", email = "rhoadesj@alumni.harvard.edu" },
+]
+maintainers = [
+    { name = "Jeff Rhoades", email = "rhoadesj@alumni.harvard.edu" },
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: {{license_classifier}}",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+keywords = ["deep learning", "neural networks", "pytorch", "machine learning"]
+requires-python = ">=3.10"
+dependencies = [
+    "torch",
+    "numpy",
+    "torchvision",
+    "networkx",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=6.0",
+    "pytest-cov>=2.0",
+    "pytest-xdist>=2.0",
+    "black>=22.0",
+    "isort>=5.0",
+    "flake8>=4.0",
+    "mypy>=0.900",
+    "pre-commit>=2.0",
+]
+test = [
+    "pytest>=6.0",
+    "pytest-cov>=2.0",
+    "pytest-xdist>=2.0",
+]
+lint = [
+    "black>=22.0",
+    "isort>=5.0",
+    "flake8>=4.0",
+    "mypy>=0.900",
+]
+docs = [
+    "sphinx>=4.0",
+    "sphinx-rtd-theme>=1.0",
+    "myst-parser>=0.15",
+]
+
+[project.urls]
+Homepage = "https://github.com/janelia-cellmap/LeibNetz"
+Repository = "https://github.com/janelia-cellmap/LeibNetz"
+Documentation = "https://github.com/janelia-cellmap/LeibNetz"
+Issues = "https://github.com/janelia-cellmap/LeibNetz/issues"
+
+# Versioning configuration using hatch-vcs for date-based versioning
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/leibnetz"]
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+    "/.github",
+    "/tests",
+    "/.gitignore",
+]
 
 # Test configuration
 [tool.pytest.ini_options]
@@ -105,7 +187,29 @@ no_implicit_optional = false
 
 [[tool.mypy.overrides]]
 module = [
-    "onnx2torch.*",
-    "onnx.*",
+    # Add modules that don't have type stubs
+    # "some_package.*",
 ]
 ignore_missing_imports = true
+
+# Ruff configuration (alternative to flake8)
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+    "C4", # flake8-comprehensions
+    "UP", # pyupgrade
+]
+ignore = [
+]
+
+[tool.ruff.per-file-ignores]
+"__init__.py" = ["F401"]  # ignore unused imports in __init__.py
+
+[tool.ruff.isort]
+known-first-party = ["leibnetz"]
