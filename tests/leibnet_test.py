@@ -17,17 +17,7 @@ def build_unet(
     base_nc=12,
     nc_increase_factor=2,
 ):
-    # from leibnetz.unet_constructor import build_unet
-
-    # return build_unet(
-    #     top_resolution,
-    #     downsample_factors,
-    #     kernel_sizes,
-    #     input_nc,
-    #     output_nc,
-    #     base_nc,
-    #     nc_increase_factor,
-    # )
+    # CODED EXPLICITLY HERE TO TEST THE NODES DIRECTLY
     # define downsample nodes
     downsample_factors = np.array(downsample_factors)
     input_key = "input"

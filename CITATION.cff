@@ -7,7 +7,7 @@ authors:
   - family-names: "Heinrich"
     given-names: "Larissa"
 title: "LeibNetz: A lightweight and modular library for rapidly developing and constructing PyTorch models for deep learning"
-version: 2025.11.13.1827
+version: 2025.11.13.1849
 date-released: 2025-11-13
 url: "https://github.com/janelia-cellmap/LeibNetz"
 repository-code: "https://github.com/janelia-cellmap/LeibNetz"
