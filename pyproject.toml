@@ -7,7 +7,7 @@ name = "leibnetz"
 dynamic = ["version"]
 description = "A lightweight and modular library for rapidly developing and constructing PyTorch models for deep learning."
 readme = "README.md"
-license = { text = "BSD-3-Clause" }
+license = { text = "BSD 3-Clause License" }
 authors = [
     { name = "Jeff Rhoades", email = "rhoadesj@alumni.harvard.edu" },
 ]
@@ -18,13 +18,13 @@ classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: {{license_classifier}}",
+    "License :: OSI Approved :: BSD License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
-    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 keywords = ["deep learning", "neural networks", "pytorch", "machine learning"]
