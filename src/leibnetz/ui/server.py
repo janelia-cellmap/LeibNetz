@@ -7,9 +7,9 @@ network builder interface for constructing LeibNetz networks visually.
 
 import http.server
 import os
+from pathlib import Path
 import socketserver
 import webbrowser
-from pathlib import Path
 
 
 def serve_ui(port: int = 8080, open_browser: bool = True) -> None:
@@ -45,15 +45,15 @@ def serve_ui(port: int = 8080, open_browser: bool = True) -> None:
     # Create the server
     with socketserver.TCPServer(("", port), CustomHandler) as httpd:
         url = f"http://localhost:{port}/network_builder.html"
-        print(f"🧠 LeibNetz Network Builder")
-        print(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        print("🧠 LeibNetz Network Builder")
+        print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         print(f"Server running at: {url}")
-        print(f"Press Ctrl+C to stop the server")
-        print(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        print("Press Ctrl+C to stop the server")
+        print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
         # Open browser automatically
         if open_browser:
-            print(f"\nOpening browser...")
+            print("\nOpening browser...")
             webbrowser.open(url)
 
         try:

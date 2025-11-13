@@ -76,7 +76,7 @@ serve_ui(port=9000, open_browser=False)
    # Generated LeibNetz Network
    from leibnetz import LeibNet
    from leibnetz.nodes import ConvPassNode, ResampleNode
-   
+
    # Define nodes
    node1 = ConvPassNode(
        input_keys=["input"],
@@ -86,9 +86,9 @@ serve_ui(port=9000, open_browser=False)
        kernel_sizes=[3, 3],
        activation="ReLU",
    )
-   
+
    # ... more nodes ...
-   
+
    # Create model
    model = LeibNet(nodes, outputs)
    ```

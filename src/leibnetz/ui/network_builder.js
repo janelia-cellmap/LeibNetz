@@ -374,10 +374,10 @@ class NetworkBuilder {
             html += `<label class="form-label">${this.escapeHtml(prop.label)}</label>`;
 
             if (prop.type === 'number') {
-                html += `<input type="number" class="form-input" value="${this.escapeHtml(String(node.properties[key]))}" 
+                html += `<input type="number" class="form-input" value="${this.escapeHtml(String(node.properties[key]))}"
                     onchange="app.updateNodeProperty('${this.escapeHtml(key)}', this.value, 'number')">`;
             } else if (prop.type === 'text') {
-                html += `<input type="text" class="form-input" value="${this.escapeHtml(String(node.properties[key]))}" 
+                html += `<input type="text" class="form-input" value="${this.escapeHtml(String(node.properties[key]))}"
                     onchange="app.updateNodeProperty('${this.escapeHtml(key)}', this.value, 'text')">`;
             } else if (prop.type === 'select') {
                 html += `<select class="form-select" onchange="app.updateNodeProperty('${this.escapeHtml(key)}', this.value, 'select')">`;
@@ -388,7 +388,7 @@ class NetworkBuilder {
                 html += '</select>';
             } else if (prop.type === 'checkbox') {
                 const checked = node.properties[key] ? 'checked' : '';
-                html += `<input type="checkbox" ${checked} 
+                html += `<input type="checkbox" ${checked}
                     onchange="app.updateNodeProperty('${this.escapeHtml(key)}', this.checked, 'checkbox')">`;
             }
 
