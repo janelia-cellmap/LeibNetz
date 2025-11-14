@@ -70,6 +70,9 @@ Repository = "https://github.com/janelia-cellmap/LeibNetz"
 Documentation = "https://github.com/janelia-cellmap/LeibNetz"
 Issues = "https://github.com/janelia-cellmap/LeibNetz/issues"
 
+[project.scripts]
+leibnetz-ui = "leibnetz.ui:main"
+
 # Versioning configuration using hatch-vcs for date-based versioning
 [tool.hatch.version]
 source = "vcs"

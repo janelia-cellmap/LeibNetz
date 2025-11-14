@@ -11,6 +11,7 @@ A lightweight and modular library for rapidly developing and constructing PyTorc
 ## Features
 
 - 🧱 **Modular Architecture**: Build networks using composable node-based components
+- 🎨 **Visual Network Builder**: Browser-based UI for graphically constructing networks
 - 🔧 **Pre-built Networks**: Ready-to-use implementations of U-Net, ScaleNet, and AttentiveScaleNet
 - 📐 **Automatic Shape Propagation**: Smart shape calculation and management throughout the network
 - 🎯 **Specialized for Segmentation**: Optimized for image segmentation tasks
@@ -42,6 +43,24 @@ pip install -e ".[dev]"
 ```
 
 ## Quick Start
+
+### Visual Network Builder (New!)
+
+Build networks graphically using the browser-based UI:
+
+```bash
+# Launch the visual network builder
+leibnetz-ui
+```
+
+This opens a browser-based interface where you can:
+- Drag and drop nodes onto a canvas
+- Connect nodes visually
+- Edit node properties in real-time
+- Generate Python code automatically
+- Export/import network configurations as JSON
+
+See [UI documentation](src/leibnetz/ui/README.md) for more details.
 
 ### Building a Simple U-Net
 

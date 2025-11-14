@@ -9,3 +9,4 @@ from .local_learning import (
 )
 from .model_wrapper import ModelWrapper
 from .nets import build_attentive_scale_net, build_scalenet, build_unet
+from .ui import serve_ui

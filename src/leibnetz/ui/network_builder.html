@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LeibNetz Network Builder</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: #f5f5f5;
+            overflow: hidden;
+        }
+
+        .app-container {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: #2c3e50;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #3498db;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2980b9;
+        }
+
+        .btn-success {
+            background: #27ae60;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #229954;
+        }
+
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+
+        /* Node Palette */
+        .node-palette {
+            width: 250px;
+            background: white;
+            border-right: 1px solid #ddd;
+            margin-top: 60px;
+            overflow-y: auto;
+            box-shadow: 2px 0 4px rgba(0,0,0,0.05);
+        }
+
+        .palette-section {
+            padding: 15px;
+        }
+
+        .palette-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            letter-spacing: 0.5px;
+        }
+
+        .node-item {
+            padding: 10px;
+            margin-bottom: 8px;
+            background: #ecf0f1;
+            border-radius: 4px;
+            cursor: move;
+            transition: all 0.2s;
+            user-select: none;
+        }
+
+        .node-item:hover {
+            background: #d5dbdb;
+            transform: translateX(2px);
+        }
+
+        .node-item-title {
+            font-weight: 600;
+            font-size: 14px;
+            color: #2c3e50;
+        }
+
+        .node-item-desc {
+            font-size: 11px;
+            color: #7f8c8d;
+            margin-top: 4px;
+        }
+
+        /* Canvas Area */
+        .canvas-area {
+            flex: 1;
+            position: relative;
+            margin-top: 60px;
+            overflow: hidden;
+        }
+
+        #network-canvas {
+            width: 100%;
+            height: 100%;
+            cursor: grab;
+        }
+
+        #network-canvas.dragging {
+            cursor: grabbing;
+        }
+
+        /* Properties Panel */
+        .properties-panel {
+            width: 300px;
+            background: white;
+            border-left: 1px solid #ddd;
+            margin-top: 60px;
+            overflow-y: auto;
+            box-shadow: -2px 0 4px rgba(0,0,0,0.05);
+        }
+
+        .panel-header {
+            padding: 15px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #ddd;
+            font-weight: 600;
+            font-size: 14px;
+            color: #2c3e50;
+        }
+
+        .panel-content {
+            padding: 15px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 5px;
+        }
+
+        .form-input,
+        .form-select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .form-input:focus,
+        .form-select:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        .help-text {
+            font-size: 11px;
+            color: #7f8c8d;
+            margin-top: 3px;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 8px;
+            max-width: 800px;
+            max-height: 80vh;
+            width: 90%;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+
+        .modal-header {
+            padding: 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .modal-body {
+            padding: 20px;
+            overflow-y: auto;
+            max-height: calc(80vh - 140px);
+        }
+
+        .modal-footer {
+            padding: 15px 20px;
+            background: #f8f9fa;
+            border-top: 1px solid #ddd;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .code-block {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            white-space: pre;
+            line-height: 1.5;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #7f8c8d;
+            transition: color 0.2s;
+        }
+
+        .close-btn:hover {
+            color: #2c3e50;
+        }
+
+        /* Status bar */
+        .status-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 30px;
+            background: #34495e;
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 0 15px;
+            font-size: 12px;
+            z-index: 999;
+        }
+
+        .status-item {
+            margin-right: 20px;
+        }
+
+        /* Empty state */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #7f8c8d;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+
+        .empty-state-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+
+        .empty-state-text {
+            font-size: 14px;
+            max-width: 400px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🧠 LeibNetz Network Builder</h1>
+        <div class="header-actions">
+            <button class="btn btn-primary" onclick="app.newNetwork()">New</button>
+            <button class="btn btn-primary" onclick="app.openImportModal()">Import</button>
+            <button class="btn btn-primary" onclick="app.exportNetwork()">Export JSON</button>
+            <button class="btn btn-success" onclick="app.generateCode()">Generate Code</button>
+            <button class="btn btn-danger" onclick="app.clearCanvas()">Clear</button>
+        </div>
+    </div>
+
+    <div class="app-container">
+        <div class="node-palette">
+            <div class="palette-section">
+                <div class="palette-title">Available Nodes</div>
+                <div class="node-item" draggable="true" data-node-type="ConvPassNode">
+                    <div class="node-item-title">ConvPassNode</div>
+                    <div class="node-item-desc">Convolutional layers with activation</div>
+                </div>
+                <div class="node-item" draggable="true" data-node-type="ResampleNode">
+                    <div class="node-item-title">ResampleNode</div>
+                    <div class="node-item-desc">Upsample/downsample operations</div>
+                </div>
+                <div class="node-item" draggable="true" data-node-type="ConvResampleNode">
+                    <div class="node-item-title">ConvResampleNode</div>
+                    <div class="node-item-desc">Combined convolution and resampling</div>
+                </div>
+                <div class="node-item" draggable="true" data-node-type="AdditiveAttentionGateNode">
+                    <div class="node-item-title">AdditiveAttentionGateNode</div>
+                    <div class="node-item-desc">Attention mechanism for feature gating</div>
+                </div>
+                <div class="node-item" draggable="true" data-node-type="WrapperNode">
+                    <div class="node-item-title">WrapperNode</div>
+                    <div class="node-item-desc">Wraps existing PyTorch modules</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="canvas-area">
+            <canvas id="network-canvas"></canvas>
+        </div>
+
+        <div class="properties-panel">
+            <div class="panel-header">Node Properties</div>
+            <div class="panel-content" id="properties-content">
+                <div class="empty-state">
+                    <div class="empty-state-icon">📋</div>
+                    <div class="empty-state-title">No Node Selected</div>
+                    <div class="empty-state-text">
+                        Select a node from the canvas to view and edit its properties.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="status-bar">
+        <div class="status-item">Nodes: <span id="node-count">0</span></div>
+        <div class="status-item">Connections: <span id="connection-count">0</span></div>
+    </div>
+
+    <!-- Code Generation Modal -->
+    <div class="modal" id="code-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Generated Python Code</div>
+                <button class="close-btn" onclick="app.closeModal('code-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="code-block" id="generated-code"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="app.copyCode()">Copy to Clipboard</button>
+                <button class="btn" onclick="app.closeModal('code-modal')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import Modal -->
+    <div class="modal" id="import-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Import Network JSON</div>
+                <button class="close-btn" onclick="app.closeModal('import-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <textarea id="import-json" class="form-input" rows="10" placeholder="Paste your network JSON here..."></textarea>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-success" onclick="app.importNetwork()">Import</button>
+                <button class="btn" onclick="app.closeModal('import-modal')">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="network_builder.js"></script>
+</body>
+</html>
