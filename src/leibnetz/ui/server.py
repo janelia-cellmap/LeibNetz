@@ -6,7 +6,6 @@ network builder interface for constructing LeibNetz networks visually.
 """
 
 import http.server
-import os
 from pathlib import Path
 import socketserver
 import webbrowser
@@ -23,11 +22,12 @@ def serve_ui(port: int = 8080, open_browser: bool = True) -> None:
     # Get the directory containing this file
     ui_dir = Path(__file__).parent
 
-    # Change to the UI directory
-    os.chdir(ui_dir)
-
     # Create a custom handler to set MIME types correctly
     class CustomHandler(http.server.SimpleHTTPRequestHandler):
+        def __init__(self, *args, **kwargs):
+            # Set the directory to serve files from
+            super().__init__(*args, directory=str(ui_dir), **kwargs)
+
         def end_headers(self):
             # Add CORS headers to allow local development
             self.send_header("Access-Control-Allow-Origin", "*")
